@@ -1,0 +1,170 @@
+# Copyright (c) 2026 rkwithb (https://github.com/rkwithb)
+# Licensed under CC BY-NC 4.0 (Non-Commercial Use Only)
+# Disclaimer: Use at your own risk. The author is not responsible for any damages.
+
+"""
+core/i18n.py
+
+Lightweight i18n module for plurk-fav.
+- Call load_config() at app launch to read the persisted language from config.json.
+- Call load_language() with the resolved language code to load translations.
+- All modules use t(key, **kwargs) to get translated strings.
+- Falls back to the key itself if a translation is missing (visible but non-crashing).
+- Locale files are flat JSON stored in <program_folder>/locales/.
+- Config is stored as config.json in the program folder: {"language": "zh_TW"}
+- Supported languages: zh_TW, en
+"""
+
+import json
+import sys
+from pathlib import Path
+
+from core.logger import get_logger
+
+logger = get_logger()
+
+# Currently loaded translations dict
+_translations: dict = {}
+
+# Currently active language code
+_current_language: str = "zh_TW"
+
+# Supported language codes mapped to display labels for the UI dropdown
+SUPPORTED_LANGUAGES: dict[str, str] = {
+    "zh_TW": "繁體中文",
+    "en":    "English",
+}
+
+
+def _resolve_locales_folder() -> Path:
+    """
+    Resolve the locales/ folder.
+    - Frozen binary: bundled data is extracted to sys._MEIPASS by PyInstaller
+    - Script mode:   locales/ sits under the project root
+    """
+    if getattr(sys, "frozen", False):
+        return Path(sys._MEIPASS) / "locales"
+    else:
+        return Path(__file__).resolve().parent.parent / "locales"
+
+
+def _resolve_config_path() -> Path:
+    """
+    Resolve config.json path.
+    - Frozen binary: stored next to the binary on disk (user-writable, persistent)
+    - Script mode:   stored at the project root
+    """
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).resolve().parent / "config.json"
+    else:
+        return Path(__file__).resolve().parent.parent / "config.json"
+
+
+def load_language(lang: str) -> None:
+    """
+    Load translations for the given language code from its JSON file.
+    Falls back to zh_TW if the requested locale file is not found.
+
+    Args:
+        lang: language code, e.g. "zh_TW" or "en"
+    """
+    global _translations, _current_language
+
+    locales_folder = _resolve_locales_folder()
+    locale_file = locales_folder / f"{lang}.json"
+
+    if not locale_file.exists():
+        logger.warning(f"i18n: locale file not found for '{lang}' — falling back to zh_TW")
+        lang = "zh_TW"
+        locale_file = locales_folder / "zh_TW.json"
+
+    try:
+        with open(locale_file, "r", encoding="utf-8") as f:
+            _translations = json.load(f)
+            _current_language = lang
+            logger.debug(f"i18n: loaded '{lang}' ({len(_translations)} keys)")
+
+    except Exception as e:
+        logger.error(f"i18n: failed to load locale file '{locale_file}' — {type(e).__name__}: {e}")
+        _translations = {}
+        _current_language = lang
+
+
+def t(key: str, **kwargs) -> str:
+    """
+    Return the translated string for key, with optional placeholder substitution.
+    Falls back to the key itself if not found — missing translations are visible
+    in the UI but will never raise an exception.
+
+    Args:
+        key:    translation key, e.g. "btn_start_backup"
+        kwargs: placeholder values, e.g. t("log_backup_fetching", count=10)
+
+    Returns:
+        Translated and formatted string.
+    """
+    text = _translations.get(key, key)
+
+    if kwargs:
+        try:
+            text = text.format(**kwargs)
+        except KeyError as e:
+            logger.warning(f"i18n: missing placeholder {e} in key '{key}'")
+
+    return text
+
+
+def get_language() -> str:
+    """Return the currently active language code."""
+    return _current_language
+
+
+def load_config() -> str:
+    """
+    Read config.json from the program folder and return the persisted language code.
+    Returns "zh_TW" if the file is missing, unreadable, or contains an unknown language.
+
+    Returns:
+        A valid language code from SUPPORTED_LANGUAGES.
+    """
+    config_path = _resolve_config_path()
+
+    try:
+        with open(config_path, "r", encoding="utf-8") as f:
+            config = json.load(f)
+            lang = config.get("language", "zh_TW")
+
+            if lang not in SUPPORTED_LANGUAGES:
+                logger.warning(f"i18n: unknown language '{lang}' in config — falling back to zh_TW")
+                return "zh_TW"
+
+            logger.debug(f"i18n: config loaded — language='{lang}'")
+            return lang
+
+    except FileNotFoundError:
+        # First launch — config does not exist yet, use default silently
+        logger.debug("i18n: config.json not found — defaulting to zh_TW")
+        return "zh_TW"
+
+    except Exception as e:
+        logger.warning(f"i18n: failed to read config.json — {type(e).__name__}: {e} — defaulting to zh_TW")
+        return "zh_TW"
+
+
+def save_config(lang: str) -> None:
+    """
+    Persist the selected language code to config.json in the program folder.
+    Called when the user changes language in the UI dropdown.
+
+    Args:
+        lang: language code to save, e.g. "zh_TW" or "en"
+    """
+    config_path = _resolve_config_path()
+
+    try:
+        with open(config_path, "w", encoding="utf-8") as f:
+            json.dump({"language": lang}, f, ensure_ascii=False, indent=2)
+        logger.debug(f"i18n: config saved — language='{lang}'")
+
+    except Exception as e:
+        logger.error(f"i18n: failed to write config.json — {type(e).__name__}: {e}")

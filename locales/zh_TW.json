@@ -1,0 +1,88 @@
+{
+    "header_title":                     "噗浪最愛備份工具",
+    "lang_label":                       "語言",
+
+    "setup_title":                      "API 金鑰設定",
+    "label_consumer_key":               "Consumer Key",
+    "label_consumer_secret":            "Consumer Secret",
+    "label_access_token":               "Access Token",
+    "label_token_secret":               "Token Secret",
+    "btn_show":                         "顯示",
+    "btn_hide":                         "隱藏",
+    "btn_save_keys":                    "儲存金鑰",
+    "btn_authorize":                    "授權登入",
+
+    "backup_title":                     "備份設定",
+    "mode_incremental":                 "新增備份",
+    "mode_by_date":                     "指定日期",
+    "mode_full":                        "完整備份",
+    "label_date":                       "起始日期",
+    "date_placeholder":                 "YYYYMMDD",
+    "btn_start_backup":                 "▶  開始備份",
+    "btn_running":                      "執行中...",
+    "btn_stop":                         "停止",
+
+    "stats_total_saved":                "已儲存總數",
+    "stats_this_run":                   "本次新增",
+    "stats_db_size":                    "資料庫大小",
+
+    "btn_clear_log":                    "清除",
+    "btn_open_index":                   "一般瀏覽（無 Tag）",
+    "btn_open_viewer":                  "進階瀏覽（含 Tag）",
+    "btn_open_backup_dir":              "開啟備份資料夾",
+
+    "dialog_title_confirm_quit":        "確認離開",
+    "dialog_msg_backup_running":        "備份進行中，確定要離開？",
+    "dialog_msg_quit_warning":          "未完成的備份將會中斷。",
+    "btn_confirm_quit":                 "確定離開",
+    "btn_continue_backup":              "繼續備份",
+
+    "dialog_title_full_backup":         "完整備份確認",
+    "dialog_msg_full_backup":           "完整備份將重新下載所有歷史資料，依資料量可能需要數分鐘至數十分鐘。確定繼續？",
+    "btn_confirm_full":                 "確定執行",
+    "btn_cancel":                       "取消",
+
+    "dialog_title_oauth":               "噗浪授權",
+    "dialog_msg_oauth":                 "請在瀏覽器中完成授權，並將取得的驗證碼貼入下方：",
+    "dialog_placeholder_verifier":      "貼上驗證碼...",
+    "btn_confirm_oauth":                "確認",
+
+    "log_keys_saved":                   "[+] 金鑰已儲存。",
+    "log_keys_incomplete":              "[!!] 金鑰填寫不完整，請確認四個欄位均已填寫。",
+    "log_keys_loaded":                  "[+] 已載入金鑰。",
+    "log_auth_opening_browser":         "[>>] 正在開啟瀏覽器進行授權...",
+    "log_auth_success":                 "[+] 授權成功，Access Token 已自動寫入。",
+    "log_auth_failed":                  "[!!] 授權失敗：{error}",
+
+    "log_viewer_index_missing":         "[!!] 找不到 index.html，瀏覽功能可能無法正常使用。",
+    "log_viewer_style_missing":         "[!!] 找不到 style.css，瀏覽功能可能無法正常使用。",
+    "log_viewer_server_starting":       "[>>] 正在啟動本地伺服器...",
+    "log_viewer_server_ready":          "[+] 伺服器就緒，正在開啟瀏覽器...",
+    "log_viewer_server_failed":         "[!!] 伺服器啟動失敗：{error}",
+
+    "log_db_migrating":                 "[>>] 偵測到舊版資料庫，正在進行欄位升級與資料更新...",
+    "log_db_migration_done":            "[+] 資料庫升級完成。",
+
+    "log_backup_start":                 "[GO] 開始備份，模式：{mode}",
+    "log_backup_mode_incremental":      "新增備份",
+    "log_backup_mode_date":             "指定日期（起：{date}）",
+    "log_backup_mode_full":             "完整備份",
+    "log_backup_fetching":              "[>>] 已讀取 {count} 則...",
+    "log_backup_saved":                 "[+] 新增：{count} 則噗文。",
+    "log_backup_done":                  "[**] 備份完成！本次新增 {count} 則。",
+    "log_backup_stopped":               "[!!] 備份已由使用者停止。",
+    "log_backup_error":                 "[!!] 備份發生錯誤：{error}",
+    "log_backup_api_error":             "[!!] API 呼叫失敗：{error}",
+    "log_backup_no_new":                "[+] 沒有新的噗文，備份已是最新。",
+
+    "log_export_js":                    "[>>] 正在產出 JS 檔案：{months}",
+    "log_export_done":                  "[+] JS 檔案產出完成。",
+
+    "log_worker_crash":                 "[!!] 發生未預期的錯誤，備份已中斷。請查看 log 檔案以了解詳情。",
+
+    "_comment_viewer_mode":             "--- 以下為 index.html 瀏覽器介面用字串，保留供 v2 Flask /api/strings 端點使用 ---",
+    "viewer_mode_basic":                "[一般模式]",
+    "viewer_mode_full":                 "[進階模式]",
+    "viewer_mode_basic_hint":           "開啟進階瀏覽模式以使用 Tag 功能",
+    "viewer_mode_full_hint":            "Tag 功能已啟用"
+}
