@@ -6,13 +6,14 @@
 core/i18n.py
 
 Lightweight i18n module for plurk-fav.
-- Call load_config() at app launch to read the persisted language from config.json.
-- Call load_language() with the resolved language code to load translations.
+- Call load_language() with a language code to load translations.
 - All modules use t(key, **kwargs) to get translated strings.
 - Falls back to the key itself if a translation is missing (visible but non-crashing).
 - Locale files are flat JSON stored in <program_folder>/locales/.
-- Config is stored as config.json in the program folder: {"language": "zh_TW"}
 - Supported languages: zh_TW, en
+
+Config persistence (language code, port) is handled by core/config.py.
+This module only reads the locale files — it never touches config.json.
 """
 
 import json
@@ -46,18 +47,6 @@ def _resolve_locales_folder() -> Path:
         return Path(sys._MEIPASS) / "locales"
     else:
         return Path(__file__).resolve().parent.parent / "locales"
-
-
-def _resolve_config_path() -> Path:
-    """
-    Resolve config.json path.
-    - Frozen binary: stored next to the binary on disk (user-writable, persistent)
-    - Script mode:   stored at the project root
-    """
-    if getattr(sys, "frozen", False):
-        return Path(sys.executable).resolve().parent / "config.json"
-    else:
-        return Path(__file__).resolve().parent.parent / "config.json"
 
 
 def load_language(lang: str) -> None:
@@ -117,54 +106,3 @@ def t(key: str, **kwargs) -> str:
 def get_language() -> str:
     """Return the currently active language code."""
     return _current_language
-
-
-def load_config() -> str:
-    """
-    Read config.json from the program folder and return the persisted language code.
-    Returns "zh_TW" if the file is missing, unreadable, or contains an unknown language.
-
-    Returns:
-        A valid language code from SUPPORTED_LANGUAGES.
-    """
-    config_path = _resolve_config_path()
-
-    try:
-        with open(config_path, "r", encoding="utf-8") as f:
-            config = json.load(f)
-            lang = config.get("language", "zh_TW")
-
-            if lang not in SUPPORTED_LANGUAGES:
-                logger.warning(f"i18n: unknown language '{lang}' in config — falling back to zh_TW")
-                return "zh_TW"
-
-            logger.debug(f"i18n: config loaded — language='{lang}'")
-            return lang
-
-    except FileNotFoundError:
-        # First launch — config does not exist yet, use default silently
-        logger.debug("i18n: config.json not found — defaulting to zh_TW")
-        return "zh_TW"
-
-    except Exception as e:
-        logger.warning(f"i18n: failed to read config.json — {type(e).__name__}: {e} — defaulting to zh_TW")
-        return "zh_TW"
-
-
-def save_config(lang: str) -> None:
-    """
-    Persist the selected language code to config.json in the program folder.
-    Called when the user changes language in the UI dropdown.
-
-    Args:
-        lang: language code to save, e.g. "zh_TW" or "en"
-    """
-    config_path = _resolve_config_path()
-
-    try:
-        with open(config_path, "w", encoding="utf-8") as f:
-            json.dump({"language": lang}, f, ensure_ascii=False, indent=2)
-        logger.debug(f"i18n: config saved — language='{lang}'")
-
-    except Exception as e:
-        logger.error(f"i18n: failed to write config.json — {type(e).__name__}: {e}")
