@@ -52,9 +52,6 @@ BACKUP_DIR: Path = BASE_DIR / "backup_js"
 # SQLite database — source of truth for all fetched favorites
 DB_PATH: Path = BACKUP_DIR / "plurk_favorites.db"
 
-# Tracks which months were affected during the last incremental/date backup run.
-# Written at the end of a run, read by export.py, deleted at the start of the next run.
-TRACK_FILE: Path = BACKUP_DIR / "affected_months.txt"
 
 # ── Config and credentials ───────────────────────────────────────────────────
 
