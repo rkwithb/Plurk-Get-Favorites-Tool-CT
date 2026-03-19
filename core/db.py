@@ -15,6 +15,7 @@ Migration strategy (old schema: plurk_id, posted, raw_json only):
 - Detect missing columns via PRAGMA table_info
 - Add missing columns with ALTER TABLE
 - Backfill owner_id, nick_name, plurk_type from raw_json — no API calls needed
+- Backfill posted2 (ISO 8601) from posted (RFC 2822) — no API calls needed
 - Migration is a one-time cost; subsequent launches skip it silently
 
 All migration log messages are emitted via an on_log callback so they surface
@@ -23,6 +24,7 @@ in the GUI log area rather than printing to stdout.
 
 import json
 import sqlite3
+from datetime import datetime
 from typing import Callable
 
 from core.logger import get_logger
@@ -50,7 +52,7 @@ def _migrate(conn: sqlite3.Connection, on_log: Callable[[str], None]) -> None:
     """
     cursor = conn.cursor()
     existing = _get_existing_columns(cursor)
-    new_columns = {"owner_id", "nick_name", "plurk_type"}
+    new_columns = {"owner_id", "nick_name", "plurk_type", "posted2"}
 
     missing = new_columns - existing
     if not missing:
@@ -66,6 +68,7 @@ def _migrate(conn: sqlite3.Connection, on_log: Callable[[str], None]) -> None:
         "owner_id":   "INTEGER",
         "nick_name":  "TEXT",
         "plurk_type": "INTEGER",
+        "posted2":    "TEXT",
     }
     for col in missing:
         cursor.execute(f"ALTER TABLE favorites ADD COLUMN {col} {type_map[col]}")
@@ -73,20 +76,30 @@ def _migrate(conn: sqlite3.Connection, on_log: Callable[[str], None]) -> None:
 
     conn.commit()
 
-    # Backfill from raw_json — one pass, no API calls
-    cursor.execute("SELECT plurk_id, raw_json FROM favorites WHERE owner_id IS NULL")
+    # Backfill from raw_json and posted — one pass, no API calls
+    cursor.execute("SELECT plurk_id, posted, raw_json FROM favorites WHERE owner_id IS NULL")
     rows = cursor.fetchall()
     logger.info("db: backfilling %d rows", len(rows))
 
-    for i, (plurk_id, raw) in enumerate(rows):
+    for i, (plurk_id, posted, raw) in enumerate(rows):
         try:
             p = json.loads(raw)
+            # Parse RFC 2822 posted string into ISO 8601 for posted2
+            try:
+                posted2 = datetime.strptime(
+                    posted, "%a, %d %b %Y %H:%M:%S GMT"
+                ).strftime("%Y-%m-%d %H:%M:%S")
+            except Exception:
+                posted2 = None
+                logger.warning("db: could not parse posted for plurk_id=%s", plurk_id)
+
             cursor.execute(
-                "UPDATE favorites SET owner_id=?, nick_name=?, plurk_type=? WHERE plurk_id=?",
+                "UPDATE favorites SET owner_id=?, nick_name=?, plurk_type=?, posted2=? WHERE plurk_id=?",
                 (
                     p.get("owner_id"),
                     p.get("nick_name", ""),
                     p.get("plurk_type"),
+                    posted2,
                     plurk_id,
                 )
             )
@@ -136,6 +149,7 @@ def init_db(
         CREATE TABLE IF NOT EXISTS favorites (
             plurk_id   INTEGER PRIMARY KEY,
             posted     TEXT,
+            posted2    TEXT,
             owner_id   INTEGER,
             nick_name  TEXT,
             plurk_type INTEGER,
@@ -167,6 +181,9 @@ def init_db(
     cursor.execute(
         "CREATE INDEX IF NOT EXISTS idx_type ON favorites(plurk_type)"
     )
+    cursor.execute(
+        "CREATE INDEX IF NOT EXISTS idx_posted2 ON favorites(posted2)"
+    )
 
     conn.commit()
     logger.debug("db: tables and indexes ready")
@@ -181,6 +198,7 @@ def save_to_db(
     conn: sqlite3.Connection,
     plurk_id: int,
     posted: str,
+    posted2: str,
     owner_id: int,
     nick_name: str,
     plurk_type: int,
@@ -194,6 +212,8 @@ def save_to_db(
         conn:       open database connection
         plurk_id:   Plurk's unique post ID
         posted:     post timestamp string from API, e.g. "Fri, 05 Jun 2009 06:00:00 GMT"
+        posted2:    post timestamp in ISO 8601 format, e.g. "2009-06-05 06:00:00"
+                    used for SQL-level month filtering in export
         owner_id:   numeric user ID of the post owner
         nick_name:  display name of the post owner, denormalised at backup time
         plurk_type: 0=public, 1=private, 4=anonymous
@@ -202,10 +222,10 @@ def save_to_db(
     conn.execute(
         """
         INSERT OR IGNORE INTO favorites
-            (plurk_id, posted, owner_id, nick_name, plurk_type, raw_json)
-        VALUES (?, ?, ?, ?, ?, ?)
+            (plurk_id, posted, posted2, owner_id, nick_name, plurk_type, raw_json)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
         """,
-        (plurk_id, posted, owner_id, nick_name, plurk_type, raw_json),
+        (plurk_id, posted, posted2, owner_id, nick_name, plurk_type, raw_json),
     )
     conn.commit()
 
