@@ -26,11 +26,10 @@ it no longer owns any file I/O of its own.
 """
 
 import json
-import sys
 from dataclasses import dataclass
-from pathlib import Path
 
 from core.logger import get_logger
+from core.paths import CONFIG_PATH
 
 logger = get_logger()
 
@@ -53,22 +52,6 @@ class AppConfig:
 
 
 # ---------------------------------------------------------------------------
-# Path resolution
-# ---------------------------------------------------------------------------
-
-def _resolve_config_path() -> Path:
-    """
-    Resolve config.json path.
-    - Frozen binary: stored next to the binary on disk (user-writable, persistent)
-    - Script mode:   stored at the project root
-    """
-    if getattr(sys, "frozen", False):
-        return Path(sys.executable).resolve().parent / "config.json"
-    else:
-        return Path(__file__).resolve().parent.parent / "config.json"
-
-
-# ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
 
@@ -83,7 +66,7 @@ def load_config() -> AppConfig:
     """
     from core.i18n import SUPPORTED_LANGUAGES
 
-    config_path = _resolve_config_path()
+    config_path = CONFIG_PATH
 
     try:
         with open(config_path, "r", encoding="utf-8") as f:
@@ -122,7 +105,7 @@ def save_config(cfg: AppConfig) -> None:
     Args:
         cfg: AppConfig instance with the values to save
     """
-    config_path = _resolve_config_path()
+    config_path = CONFIG_PATH
 
     # Read existing file to preserve unrecognised keys
     try:
