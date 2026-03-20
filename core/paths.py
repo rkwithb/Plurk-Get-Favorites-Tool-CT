@@ -63,7 +63,9 @@ CONFIG_PATH: Path = BASE_DIR / "config.json"
 
 # ── Locale ───────────────────────────────────────────────────────────────────
 
-# Locale files folder — note: "locales" (plural) consistent with image tool
+# Locale files folder — shipped next to the binary, not bundled inside.
+# Resolves correctly in both script mode and frozen mode via BASE_DIR.
+# Note: "locales" (plural) consistent with image tool convention.
 LOCALES_DIR: Path = BASE_DIR / "locales"
 
 
