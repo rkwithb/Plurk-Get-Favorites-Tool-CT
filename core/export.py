@@ -15,7 +15,10 @@ Output structure (backup_js/):
 
 Trimmed JS object fields (raw_json is NOT written to JS files):
     plurk_id, posted, content_raw, owner_id, nick_name,
-    plurk_type, response_count, favorite_count, plurk_url, tags
+    plurk_type, plurk_url, tags
+
+response_count and favorite_count are excluded from JS files in v1 —
+they remain in raw_json in the DB only. Deferred to v2.
 
 Tags are appended via a LEFT JOIN on plurk_tags/tags at export time.
 If the user adds or removes tags in full mode (Flask), JS files become
@@ -37,7 +40,9 @@ from core.logger import get_logger
 logger = get_logger()
 
 # Fields to extract from raw_json and include in the JS output.
-# Everything else (content, qualifier, lang, replurker_id, etc.) stays in DB only.
+# Everything else (content, qualifier, lang, response_count, favorite_count,
+# replurker_id, etc.) stays in DB only.
+# response_count and favorite_count deferred to v2.
 _JS_FIELDS = (
     "plurk_id",
     "posted",
@@ -45,8 +50,6 @@ _JS_FIELDS = (
     "owner_id",
     "nick_name",
     "plurk_type",
-    "response_count",
-    "favorite_count",
 )
 
 
