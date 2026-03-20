@@ -5,6 +5,7 @@ __pycache__/
 venv/
 .venv/
 dist/
+core/version.py
 
 #VS code
 *.code-workspace
