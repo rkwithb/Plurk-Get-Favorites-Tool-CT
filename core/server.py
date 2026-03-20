@@ -26,8 +26,7 @@ API endpoints:
     month=YYYY_MM       filter by month (omit for cross-month)
     nick_name=str       filter by post owner nick name
     plurk_type=int      filter by type (0=public, 1=private, 4=anonymous)
-    sort=str            sort order: "newest" (default), "response_count",
-                        "favorite_count"
+    sort=str            sort order: "newest" (default, only supported value in v1)
 
 Tag request body (JSON):
     {"plurk_id": 123, "tag_name": "my tag"}
@@ -65,11 +64,10 @@ _conn: Optional[sqlite3.Connection] = None
 # Active port — set by start_server(), used by stop_server() and wait_until_ready()
 _port: int = 5123
 
-# Allowed sort column names — whitelist to prevent SQL injection
+# Allowed sort column names — whitelist to prevent SQL injection.
+# response_count and favorite_count deferred to v2.
 _SORT_COLUMNS = {
-    "newest":          "f.plurk_id DESC",
-    "response_count":  "json_extract(f.raw_json, '$.response_count') DESC",
-    "favorite_count":  "json_extract(f.raw_json, '$.favorite_count') DESC",
+    "newest": "f.plurk_id DESC",
 }
 
 
@@ -120,7 +118,7 @@ def _create_app() -> Flask:
             month=YYYY_MM       (optional) filter by month
             nick_name=str       (optional) filter by owner nick name
             plurk_type=int      (optional) filter by plurk type
-            sort=str            (optional) sort order key (default: newest)
+            sort=str            (optional) sort order key — "newest" only in v1 (default)
         """
         month      = request.args.get("month",      "").strip()
         nick_name  = request.args.get("nick_name",  "").strip()
