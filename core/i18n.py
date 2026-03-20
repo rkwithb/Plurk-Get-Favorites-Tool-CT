@@ -9,18 +9,17 @@ Lightweight i18n module for plurk-fav.
 - Call load_language() with a language code to load translations.
 - All modules use t(key, **kwargs) to get translated strings.
 - Falls back to the key itself if a translation is missing (visible but non-crashing).
-- Locale files are flat JSON stored in <program_folder>/locales/.
-- Supported languages: zh_TW, en
+- Locale files are flat JSON stored in locales/ next to the binary (not bundled inside).
+  LOCALES_DIR from paths.py resolves correctly in both script mode and frozen mode.
 
 Config persistence (language code, port) is handled by core/config.py.
 This module only reads the locale files — it never touches config.json.
 """
 
 import json
-import sys
-from pathlib import Path
 
 from core.logger import get_logger
+from core.paths import LOCALES_DIR
 
 logger = get_logger()
 
@@ -37,18 +36,6 @@ SUPPORTED_LANGUAGES: dict[str, str] = {
 }
 
 
-def _resolve_locales_folder() -> Path:
-    """
-    Resolve the locales/ folder.
-    - Frozen binary: bundled data is extracted to sys._MEIPASS by PyInstaller
-    - Script mode:   locales/ sits under the project root
-    """
-    if getattr(sys, "frozen", False):
-        return Path(sys._MEIPASS) / "locales"
-    else:
-        return Path(__file__).resolve().parent.parent / "locales"
-
-
 def load_language(lang: str) -> None:
     """
     Load translations for the given language code from its JSON file.
@@ -59,7 +46,7 @@ def load_language(lang: str) -> None:
     """
     global _translations, _current_language
 
-    locales_folder = _resolve_locales_folder()
+    locales_folder = LOCALES_DIR
     locale_file = locales_folder / f"{lang}.json"
 
     if not locale_file.exists():
