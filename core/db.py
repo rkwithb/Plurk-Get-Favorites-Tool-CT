@@ -142,6 +142,9 @@ def init_db(
     """
     conn = sqlite3.connect(db_path)
     conn.execute("PRAGMA foreign_keys = ON")
+    # WAL mode allows concurrent reads and one writer without locking errors,
+    # so backup writes and tag writes from Flask can coexist safely.
+    conn.execute("PRAGMA journal_mode=WAL")
     cursor = conn.cursor()
 
     # -- favorites table ------------------------------------------------
