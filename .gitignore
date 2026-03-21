@@ -16,6 +16,7 @@ core/version.py
 data/
 backup/
 log/
+*.env
 
 # OS
 .DS_Store
