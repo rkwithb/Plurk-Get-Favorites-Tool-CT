@@ -1,0 +1,15 @@
+# ==========================================
+# System dependency (install before pip):
+# Ubuntu/Debian: sudo apt install python3-tk
+# Fedora:        sudo dnf install python3-tkinter
+# macOS:         install Python from https://python.org (includes tkinter)
+# Windows:       tkinter is bundled with standard Python installer
+# ==========================================
+
+customtkinter==5.2.2
+flask==3.1.0
+plurk-oauth==0.9.2
+python-dotenv==1.2.1
+pyutil==3.3.6
+requests==2.32.5
+setuptools==80.10.2
