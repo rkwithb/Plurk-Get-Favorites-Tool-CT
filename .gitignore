@@ -15,6 +15,7 @@ core/version.py
 # Backup data (user's personal data)
 data/
 backup/
+backup_js
 log/
 *.env
 
