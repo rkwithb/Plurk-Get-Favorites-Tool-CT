@@ -50,6 +50,8 @@
     "log_keys_saved":                   "[+] 金鑰已儲存。",
     "log_keys_incomplete":              "[!!] 金鑰填寫不完整，請確認四個欄位均已填寫。",
     "log_keys_loaded":                  "[+] 已載入金鑰。",
+    "log_keys_env_created":             "[+] 已建立 tool.env，請填入 Consumer Key / Secret 後點擊「授權登入」。",
+    "log_keys_need_oauth":              "[!!] Access Token 未設定，請點擊「授權登入」完成授權。",
     "log_auth_opening_browser":         "[>>] 正在開啟瀏覽器進行授權...",
     "log_auth_success":                 "[+] 授權成功，Access Token 已自動寫入。",
     "log_auth_failed":                  "[!!] 授權失敗：{error}",

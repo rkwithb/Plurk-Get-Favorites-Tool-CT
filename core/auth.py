@@ -55,6 +55,7 @@ _KEY_ATS = "PLURK_ACCESS_TOKEN_SECRET"
 def get_keys() -> Tuple[str, str, str, str]:
     """
     Read all four API keys from tool.env.
+    Creates an empty tool.env template if the file does not exist.
 
     Returns:
         (consumer_key, consumer_secret, access_token, access_token_secret)
@@ -62,7 +63,12 @@ def get_keys() -> Tuple[str, str, str, str]:
         check for completeness before using the keys.
     """
     if not os.path.exists(ENV_PATH):
-        logger.debug("auth: tool.env not found at %s", ENV_PATH)
+        # Create empty template so the user has a file to reference
+        logger.info("auth: tool.env not found — creating empty template at %s", ENV_PATH)
+        set_key(ENV_PATH, _KEY_CK,  "", quote_mode="never")
+        set_key(ENV_PATH, _KEY_CS,  "", quote_mode="never")
+        set_key(ENV_PATH, _KEY_AT,  "", quote_mode="never")
+        set_key(ENV_PATH, _KEY_ATS, "", quote_mode="never")
         return "", "", "", ""
 
     load_dotenv(ENV_PATH, override=True)

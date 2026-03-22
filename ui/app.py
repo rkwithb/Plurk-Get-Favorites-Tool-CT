@@ -725,7 +725,9 @@ class App(ctk.CTk):
     def _load_keys_to_fields(self):
         """
         Read keys from tool.env and populate the four entry fields.
-        Collapses the setup panel if all four keys are present.
+        Creates tool.env template if missing.
+        Collapses setup panel only if all four keys are present.
+        Logs actionable guidance for each incomplete state.
         """
         ck, cs, at, ats = get_keys()
         self._ck_entry.delete(0, "end");  self._ck_entry.insert(0, ck)
@@ -734,15 +736,22 @@ class App(ctk.CTk):
         self._ats_entry.delete(0, "end"); self._ats_entry.insert(0, ats)
 
         if all([ck, cs, at, ats]):
-            # All keys present — collapse panel and log silently
+            # All keys present — collapse panel
             self._setup_content.grid_remove()
             self._setup_toggle_btn.configure(text="[+]")
             self._append_log(t("log_keys_loaded"))
             self._logger.info("Keys loaded from tool.env — setup panel collapsed")
-        elif any([ck, cs, at, ats]):
-            # Partial keys — leave expanded so user can complete them
+
+        elif ck and cs and not at and not ats:
+            # Consumer keys present but OAuth not yet completed
             self._append_log(t("log_keys_loaded"))
-            self._logger.info("Partial keys loaded from tool.env — setup panel expanded")
+            self._append_log(t("log_keys_need_oauth"))
+            self._logger.info("Consumer keys loaded — access token missing, OAuth required")
+
+        elif not ck and not cs and not at and not ats:
+            # Fresh install — tool.env was just created empty by get_keys()
+            self._append_log(t("log_keys_env_created"))
+            self._logger.info("tool.env created — user needs to fill in Consumer Key/Secret")
 
     def _on_save_keys(self):
         """Read the four entry fields and persist to tool.env."""
