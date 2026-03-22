@@ -140,7 +140,7 @@ def init_db(
     Returns:
         An open sqlite3.Connection with foreign keys enabled.
     """
-    conn = sqlite3.connect(db_path)
+    conn = sqlite3.connect(db_path, check_same_thread=False)
     conn.execute("PRAGMA foreign_keys = ON")
     # WAL mode allows concurrent reads and one writer without locking errors,
     # so backup writes and tag writes from Flask can coexist safely.
