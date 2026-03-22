@@ -87,7 +87,7 @@ class StatCard(ctk.CTkFrame):
 
 
 class App(ctk.CTk):
-    def __init__(self, cleanup_msg: str | None = None):
+    def __init__(self, cfg: "AppConfig", cleanup_msg: str | None = None):
         super().__init__()
 
         self.title(t("header_title"))
@@ -104,9 +104,9 @@ class App(ctk.CTk):
         # Shared with run_backup_task() via the on_stop callback pattern.
         self._stop_event = threading.Event()
 
-        # Persisted config — loaded once, mutated in place, written back on change.
-        # Never re-read from disk mid-session to avoid overwriting live port value.
-        self._cfg = load_config()
+        # Persisted config — passed in from main() to avoid a second file read.
+        # Mutated in place, written back on change.
+        self._cfg = cfg
 
         # Open DB connection — kept open for the lifetime of the app.
         ensure_backup_dir()
@@ -1165,7 +1165,7 @@ def main():
     cfg  = load_config()
     load_language(cfg.language)
 
-    app = App(cleanup_msg=cleanup_msg)
+    app = App(cfg=cfg, cleanup_msg=cleanup_msg)
     app.mainloop()
 
 
