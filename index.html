@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>Plurk Archive Browser</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <header>
+        <h1>Archive</h1>
+        <div class="subtitle">Collected Favorite Plurks</div>
+    </header>
+
+    <div class="nav-container">
+        <div class="nav-item">
+            <label>Month</label>
+            <select id="month-select"><option value="">Select Date</option></select>
+        </div>
+        <div class="nav-item">
+            <label>Filter</label>
+            <select id="type-filter">
+                <option value="all">All</option>
+                <option value="0">Public</option>
+                <option value="1">Private</option>
+                <option value="4">Anonymous</option>
+            </select>
+        </div>
+        <div class="nav-item">
+            <label>Search</label>
+            <input type="text" id="search-input" placeholder="Keyword...">
+        </div>
+        <div class="nav-item">
+            <input type="file" id="bg-upload" accept="image/*" style="display:none;" onchange="handleBgUpload(this)">
+            <span class="bg-btn" onclick="document.getElementById('bg-upload').click()">Choose BG</span>
+            <span id="clear-bg-btn" class="bg-btn clear-btn" style="display:none;" onclick="clearBg()">Reset</span>
+        </div>
+    </div>
+
+    <div id="main-content">
+        <div id="display-area" style="display:none;"></div>
+        <div id="load-more-container" style="display:none;">
+            <button id="load-more-btn" class="btn-load-more">Load More</button>
+        </div>
+        <div id="initial-msg" class="no-data">PLEASE SELECT A MONTH TO BEGIN</div>
+    </div>
+
+    <script src="backup_js/manifest.js"></script>
+
+    <script>
+        const monthSelect = document.getElementById('month-select');
+        const typeFilter = document.getElementById('type-filter');
+        const searchInput = document.getElementById('search-input');
+        const displayArea = document.getElementById('display-area');
+        const loadMoreBtn = document.getElementById('load-more-btn');
+        const loadMoreContainer = document.getElementById('load-more-container');
+        const initialMsg = document.getElementById('initial-msg');
+        const clearBgBtn = document.getElementById('clear-bg-btn');
+
+        let allDataInMonth = [];
+        let filteredData = [];
+        let currentPage = 0;
+        const pageSize = 20;
+
+        // 背景相關功能
+        function handleBgUpload(input) {
+            const file = input.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const base64Image = e.target.result;
+                    try {
+                        localStorage.setItem('plurk_bg_base64', base64Image);
+                        applyBg(base64Image);
+                    } catch (err) {
+                        alert("檔案過大，無法儲存設定！請選擇較小的圖片。");
+                    }
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function clearBg() {
+            localStorage.removeItem('plurk_bg_base64');
+            document.body.style.backgroundImage = 'none';
+            document.body.style.backgroundColor = '#ffffff';
+            clearBgBtn.style.display = 'none';
+        }
+
+        function applyBg(url) {
+            if (url) {
+                document.body.style.backgroundImage = `url('${url}')`;
+                clearBgBtn.style.display = 'inline-block';
+            }
+        }
+
+        window.onload = function() {
+            const savedBg = localStorage.getItem('plurk_bg_base64');
+            if (savedBg) applyBg(savedBg);
+
+            if (window.BackupData && window.BackupData.months) {
+                window.BackupData.months.forEach(m => {
+                    const opt = document.createElement('option');
+                    opt.value = m;
+                    opt.textContent = m.replace('_', ' / ');
+                    monthSelect.appendChild(opt);
+                });
+            }
+        };
+
+        // 資料處理與渲染 (與之前邏輯相同)
+        function processData() {
+            const type = typeFilter.value;
+            const keyword = searchInput.value.toLowerCase().trim();
+            filteredData = allDataInMonth.filter(p => {
+                const matchType = (type === 'all' || p.plurk_type.toString() === type);
+                const matchKeyword = (!keyword || p.content_raw.toLowerCase().includes(keyword));
+                return matchType && matchKeyword;
+            });
+            currentPage = 0;
+            displayArea.innerHTML = '';
+            displayArea.style.display = 'block';
+            renderNextPage();
+        }
+
+        function renderNextPage() {
+            const start = currentPage * pageSize;
+            const end = start + pageSize;
+            const pageItems = filteredData.slice(start, end);
+            if (pageItems.length === 0 && currentPage === 0) {
+                displayArea.innerHTML = '<div class="no-data">NO POSTS FOUND.</div>';
+                loadMoreContainer.style.display = 'none';
+                return;
+            }
+            const html = pageItems.map(p => {
+                let typeName = (p.plurk_type === 1) ? "Private" : (p.plurk_type === 4 ? "Anonymous" : "Public");
+                return `
+                    <div class="plurk-item">
+                        <div class="item-header">
+                            <span class="tag tag-${p.plurk_type}">${typeName}</span>
+                            <span class="post-date">${p.posted}</span>
+                        </div>
+                        <div class="content">${p.content_raw}</div>
+                        <div class="footer-links">
+                            <a href="${p.plurk_url || '#'}" target="_blank">VIEW ON PLURK →</a>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            displayArea.insertAdjacentHTML('beforeend', html);
+            currentPage++;
+            loadMoreContainer.style.display = (end < filteredData.length) ? 'block' : 'none';
+        }
+
+        monthSelect.addEventListener('change', function() {
+            const ym = this.value;
+            if (!ym) return;
+            initialMsg.style.display = 'none';
+            displayArea.innerHTML = '<div class="no-data">LOADING...</div>';
+            displayArea.style.display = 'block';
+            const script = document.createElement('script');
+            script.src = `backup_js/${ym}.js`;
+            script.onload = () => {
+                allDataInMonth = window.BackupData.plurks[ym];
+                processData();
+            };
+            document.head.appendChild(script);
+        });
+
+        typeFilter.addEventListener('change', processData);
+        searchInput.addEventListener('input', processData);
+        loadMoreBtn.addEventListener('click', renderNextPage);
+    </script>
+</body>
+</html>
