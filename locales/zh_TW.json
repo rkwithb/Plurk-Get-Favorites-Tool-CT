@@ -17,7 +17,7 @@
     "mode_by_date":                     "指定日期",
     "mode_full":                        "完整備份",
     "label_date":                       "起始日期",
-    "date_placeholder":                 "YYYYMMDD",
+    "date_hint":                        "例：202512",
     "btn_start_backup":                 "▶  開始備份",
     "btn_running":                      "執行中...",
     "btn_stop":                         "停止",
@@ -74,6 +74,7 @@
     "log_backup_done":                  "[**] 備份完成！本次新增 {count} 則。",
     "log_backup_stopped":               "[!!] 備份已由使用者停止。",
     "log_backup_error":                 "[!!] 備份發生錯誤：{error}",
+    "log_date_invalid":                 "[!!] 日期格式錯誤，請輸入如 202512",
     "log_backup_api_error":             "[!!] API 呼叫失敗：{error}",
     "log_backup_no_new":                "[+] 沒有新的噗文，備份已是最新。",
 
