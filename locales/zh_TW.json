@@ -13,7 +13,7 @@
     "btn_authorize":                    "授權登入",
 
     "backup_title":                     "備份設定",
-    "mode_incremental":                 "新增備份",
+    "mode_incremental":                 "更新現有備份",
     "mode_by_date":                     "指定日期",
     "mode_full":                        "完整備份",
     "label_date":                       "起始日期",
