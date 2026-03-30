@@ -543,7 +543,7 @@ class App(ctk.CTk):
         self._start_btn.grid(row=3, column=0, sticky="ew", padx=16, pady=(0, 14))
         # ── Stats Bar ────────────────────────────────────────────────
         stats_wrapper = ctk.CTkFrame(self, fg_color="transparent", corner_radius=0)
-        stats_wrapper.grid(row=3, column=0, sticky="ew", padx=0, pady=0)
+        stats_wrapper.grid(row=3, column=0, sticky="ew", padx=20, pady=0)
         stats_wrapper.columnconfigure(0, weight=1)
 
         ctk.CTkFrame(
