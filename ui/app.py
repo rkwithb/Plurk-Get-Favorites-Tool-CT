@@ -188,6 +188,7 @@ class App(ctk.CTk):
         """
         self._running = False
         self._start_btn.configure(state="normal", text=t("btn_start_backup"))
+        self._mode_dropdown.configure(state="normal")
         self._append_log("")
         self._append_log(t("log_worker_crash"))
         self._logger.error("Worker thread crashed — UI reset to idle state")
@@ -472,61 +473,60 @@ class App(ctk.CTk):
         # Mode selector state — default: incremental
         self._active_mode: str = "incremental"
 
-        # Helper: build one mode button with consistent sizing and style.
-        # Active state is indicated by a white border; inactive uses CLR_ENTRY_BORDER.
-        def _make_mode_btn(parent, label: str, mode: str) -> ctk.CTkButton:
-            is_active = (mode == self._active_mode)
-            return ctk.CTkButton(
-                parent,
-                text=label,
-                width=110, height=32,
-                fg_color=CLR_BTN_PRIMARY,
-                hover_color=CLR_BTN_HOVER,
-                border_color=CLR_BORDER if is_active else CLR_ENTRY_BORDER,
-                border_width=2,
-                text_color=CLR_TEXT,
-                font=ctk.CTkFont(size=13),
-                corner_radius=6,
-                command=lambda m=mode: self._set_mode(m),
-            )
+        # Map display label → internal mode key.
+        # Built here so t() is resolved at widget-construction time.
+        self._mode_label_map: dict[str, str] = {
+            t("mode_incremental"): "incremental",
+            t("mode_by_date"):     "date",
+            t("mode_full"):        "full",
+        }
 
-        # Row 1 — horizontal mode selector row
+        # Row 1 — mode selector row: label + dropdown
         mode_row = ctk.CTkFrame(backup, fg_color="transparent")
         mode_row.grid(row=1, column=0, sticky="w", padx=16, pady=(0, 6))
 
-        self._btn_full = _make_mode_btn(mode_row, t("mode_full"), "full")
-        self._btn_full.pack(side="left", padx=(0, 4))
-
-        self._btn_incremental = _make_mode_btn(mode_row, t("mode_incremental"), "incremental")
-        self._btn_incremental.pack(side="left", padx=(0, 4))
-
-        self._btn_by_date = _make_mode_btn(mode_row, t("mode_by_date"), "date")
-        self._btn_by_date.pack(side="left")
-
-        # Row 2 — date entry row, always present to prevent layout jump.
-        # Entry and hint are disabled when mode != date; enabled when mode == date.
-        date_row = ctk.CTkFrame(backup, fg_color="transparent")
-        date_row.grid(row=2, column=0, sticky="w", padx=16, pady=(0, 8))
-
-        self._date_entry = ctk.CTkEntry(
-            date_row,
-            width=120, height=32,
-            fg_color=CLR_PANEL,           # dimmed bg signals disabled state
-            border_color=CLR_ENTRY_BORDER,
+        ctk.CTkLabel(
+            mode_row,
+            text=t("label_backup_mode"),
+            font=ctk.CTkFont(size=12),
             text_color=CLR_SUBTEXT,
+        ).pack(side="left", padx=(0, 8))
+
+        self._mode_dropdown = ctk.CTkOptionMenu(
+            mode_row,
+            values=list(self._mode_label_map.keys()),
+            command=self._on_mode_select,
+            fg_color=CLR_BTN_PRIMARY,
+            button_color=CLR_BTN_HOVER,
+            button_hover_color=CLR_BTN_HOVER,
+            text_color=CLR_TEXT,
             font=ctk.CTkFont(size=13),
-            state="disabled",             # enabled only in date mode
+            width=160,
+            height=32,
+        )
+        self._mode_dropdown.set(t("mode_incremental"))
+        self._mode_dropdown.pack(side="left")
+
+        # Date entry and hint — parented to mode_row, packed to the right of the dropdown.
+        # Hidden on init via pack_forget(); shown/hidden by _set_mode() when date mode toggles.
+        self._date_entry = ctk.CTkEntry(
+            mode_row,
+            width=120, height=32,
+            fg_color=CLR_BG,
+            border_color=CLR_ENTRY_BORDER,
+            text_color=CLR_TEXT,
+            font=ctk.CTkFont(size=13),
         )
         self._date_entry.bind("<KeyRelease>", self._on_date_change)
-        self._date_entry.pack(side="left", padx=(0, 8))
+        # Not packed on init — _set_mode() calls pack()/pack_forget() to toggle visibility
 
         self._date_hint = ctk.CTkLabel(
-            date_row,
+            mode_row,
             text=t("date_hint"),
             font=ctk.CTkFont(size=11),
             text_color=CLR_SUBTEXT,
         )
-        self._date_hint.pack(side="left")
+        # Not packed on init — shown alongside _date_entry in date mode only
 
         # Row 3 — [Start Backup] full width
         self._start_btn = ctk.CTkButton(
@@ -886,42 +886,29 @@ class App(ctk.CTk):
     # ------------------------------------------------------------------
     # Backup mode selector
     # ------------------------------------------------------------------
+    def _on_mode_select(self, label: str):
+        """Called by CTkOptionMenu when the user picks a mode. Resolves display
+        label to internal mode key and delegates to _set_mode()."""
+        mode = self._mode_label_map.get(label, "incremental")
+        self._set_mode(mode)
+
     def _set_mode(self, mode: str):
         """
         Switch the active backup mode.
-        Active button gets a white border (CLR_BORDER); inactive reverts to CLR_ENTRY_BORDER.
         Date entry and hint are enabled/dimmed based on whether date mode is selected.
         Start button state is re-evaluated on every mode switch.
         """
         self._active_mode = mode
 
-        # Update border to indicate active selection — fill color stays constant
-        for btn, btn_mode in (
-            (self._btn_incremental, "incremental"),
-            (self._btn_by_date,     "date"),
-            (self._btn_full,        "full"),
-        ):
-            btn.configure(
-                border_color=CLR_BORDER if btn_mode == mode else CLR_ENTRY_BORDER
-            )
-
-        # Enable date entry only in date mode; dim it otherwise.
-        # fg_color shift (CLR_BG vs CLR_PANEL) reinforces the enabled/disabled state visually.
+        # Show date entry + hint inline when date mode is selected; hide otherwise.
         if mode == "date":
-            self._date_entry.configure(
-                state="normal",
-                fg_color=CLR_BG,
-                text_color=CLR_TEXT,
-                border_color=CLR_ENTRY_BORDER,
-            )
+            self._date_entry.pack(side="left", padx=(8, 8))
+            self._date_hint.pack(side="left")
             # Re-evaluate Start button — entry may already contain valid content
             self._on_date_change()
         else:
-            self._date_entry.configure(
-                state="disabled",
-                fg_color=CLR_PANEL,
-                text_color=CLR_SUBTEXT,
-            )
+            self._date_entry.pack_forget()
+            self._date_hint.pack_forget()
             # Non-date modes: Start always enabled (key validation runs in _on_start)
             self._start_btn.configure(state="normal")
 
@@ -1046,8 +1033,9 @@ class App(ctk.CTk):
         # Reset stop event for this run
         self._stop_event.clear()
 
-        # Reset UI
+        # Reset UI — disable both start button and mode dropdown during run
         self._start_btn.configure(state="disabled", text=t("btn_running"))
+        self._mode_dropdown.configure(state="disabled")
         self._card_this_run.set("0")
         self._running = True
 
@@ -1080,6 +1068,7 @@ class App(ctk.CTk):
         """Called on main thread when backup worker exits (normal or stopped)."""
         self._running = False
         self._start_btn.configure(state="normal", text=t("btn_start_backup"))
+        self._mode_dropdown.configure(state="normal")
         self._refresh_stats()
         self._logger.info("--- Backup run ended ---")
 
