@@ -18,7 +18,7 @@
     "mode_by_date":                     "指定日期",
     "mode_full":                        "完整備份",
     "label_date":                       "起始日期",
-    "date_hint":                        "例：202512",
+    "date_hint":                        "例：202501",
     "btn_start_backup":                 "▶  開始備份",
     "btn_running":                      "執行中...",
     "btn_stop":                         "停止",
