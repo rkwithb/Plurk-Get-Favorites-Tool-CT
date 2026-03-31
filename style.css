@@ -44,19 +44,28 @@ h1 {
     text-transform: uppercase;
 }
 
-/* 導覽列 */
-.nav-container {
-    border-top: 1px solid #000;
-    border-bottom: 1px solid #000;
-    display: flex;
-    justify-content: center;
-    background: rgba(255, 255, 255, 0.85);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
+/* --- Sticky Header Group Logic --- */
+.sticky-header-group {
     position: sticky;
     top: 0;
     z-index: 100;
-    flex-wrap: wrap;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+}
+
+/* 導覽列 */
+/* Adjusting existing nav-container to be part of the group */
+.nav-container {
+    position: static;
+    /* No longer needs to be sticky itself */
+    display: flex;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(5px);
+    border-top: 1px solid #000;
+    border-bottom: 1px solid #000;
+    box-sizing: border-box;
 }
 
 .nav-item {
@@ -111,18 +120,13 @@ h1 {
 /* Top Banner for Advanced Mode */
 /* Full-width Advanced Mode Banner */
 .mode-banner {
-    display: block;
-    /* Occupies full width line */
     width: 100%;
     box-sizing: border-box;
-    /* Ensures padding doesn't exceed 100% width */
-    margin: 0;
-    /* Flush against header and nav */
     padding: 12px 0;
-    /* Vertical spacing */
     background: rgba(0, 0, 0, 0.05);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
     border-top: 1px solid #000;
-    /* Bottom border only to avoid double-lines with nav */
     font-size: 10px;
     letter-spacing: 2px;
     font-weight: bold;
@@ -251,12 +255,6 @@ h1 {
         /* 限制寬度 */
     }
 
-    .nav-container {
-        flex-direction: column;
-        /* 導覽列改為垂直排列 */
-        position: static;
-        /* 手機版取消 sticky 避免遮擋空間 */
-    }
 
     .nav-item {
         border-right: none;
@@ -293,11 +291,19 @@ h1 {
         /* Prevent iOS zoom on focus */
     }
 
-    .mode-banner {
-        font-size: 9px;
-        width: 100%;
-        box-sizing: border-box;
+    .sticky-header-group {
+        position: static;
+        /* Disable sticky on mobile to save vertical space */
     }
 
+    .mode-banner {
+        padding: 10px 5px;
+        font-size: 9px;
+    }
+
+    .nav-container {
+        flex-direction: column;
+        width: 100%;
+    }
 
 }

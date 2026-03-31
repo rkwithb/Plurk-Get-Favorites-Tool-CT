@@ -14,33 +14,36 @@
         <div class="subtitle">Collected Favorite Plurks</div>
 
     </header>
-    <div id="advanced-notice" class="mode-banner" style="display:none;">
-        ADVANCED MODE ENABLED (TAG EDITING ACTIVE)
-    </div>
-    <div class="nav-container">
-        <div class="nav-item">
-            <label>Month</label>
-            <select id="month-select">
-                <option value="">Select Date</option>
-            </select>
+    <div class="sticky-header-group">
+        <div id="advanced-notice" class="mode-banner" style="display:none;">
+            ADVANCED MODE ENABLED (TAG EDITING ACTIVE)
         </div>
-        <div class="nav-item">
-            <label>Filter</label>
-            <select id="type-filter">
-                <option value="all">All</option>
-                <option value="0">Public</option>
-                <option value="1">Private</option>
-                <option value="4">Anonymous</option>
-            </select>
-        </div>
-        <div class="nav-item">
-            <label>Search</label>
-            <input type="text" id="search-input" placeholder="Keyword...">
-        </div>
-        <div class="nav-item">
-            <input type="file" id="bg-upload" accept="image/*" style="display:none;" onchange="handleBgUpload(this)">
-            <span class="bg-btn" onclick="document.getElementById('bg-upload').click()">Choose BG</span>
-            <span id="clear-bg-btn" class="bg-btn clear-btn" style="display:none;" onclick="clearBg()">Reset</span>
+        <div class="nav-container">
+            <div class="nav-item">
+                <label>Month</label>
+                <select id="month-select">
+                    <option value="">Select Date</option>
+                </select>
+            </div>
+            <div class="nav-item">
+                <label>Filter</label>
+                <select id="type-filter">
+                    <option value="all">All</option>
+                    <option value="0">Public</option>
+                    <option value="1">Private</option>
+                    <option value="4">Anonymous</option>
+                </select>
+            </div>
+            <div class="nav-item">
+                <label>Search</label>
+                <input type="text" id="search-input" placeholder="Keyword...">
+            </div>
+            <div class="nav-item">
+                <input type="file" id="bg-upload" accept="image/*" style="display:none;"
+                    onchange="handleBgUpload(this)">
+                <span class="bg-btn" onclick="document.getElementById('bg-upload').click()">Choose BG</span>
+                <span id="clear-bg-btn" class="bg-btn clear-btn" style="display:none;" onclick="clearBg()">Reset</span>
+            </div>
         </div>
     </div>
 
