@@ -76,6 +76,15 @@
         // Environment Detection
         const isAdvancedMode = window.location.protocol.startsWith('http');
 
+        // Helper to convert URLs into clickable links
+        function linkify(text) {
+            if (!text) return "";
+            const urlPattern = /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/g;
+            return text.replace(urlPattern, function (url) {
+                return `<a href="${url}" target="_blank" >${url}</a>`;
+            });
+        }
+
         // Background logic
         function handleBgUpload(input) {
             const file = input.files[0];
@@ -187,7 +196,7 @@
                             <span class="tag tag-${p.plurk_type}">${typeName}</span>
                             <span class="post-date">${p.posted}</span>
                         </div>
-                        <div class="content">${p.content_raw}</div>
+                        <div class="content">${linkify(p.content_raw)}</div>
                         ${tagSection}
                         <div class="footer-links">
                             <a href="${p.plurk_url || '#'}" target="_blank">VIEW ON PLURK →</a>

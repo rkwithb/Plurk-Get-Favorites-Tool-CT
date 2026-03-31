@@ -112,6 +112,20 @@ h1 {
     color: #222;
 }
 
+/* Styling for auto-generated links within content */
+.content a {
+    color: #000000;
+    text-decoration: underline;
+    word-break: break-all;
+    /* Prevents long URLs from breaking the layout */
+    transition: color 0.2s ease;
+}
+
+.content a:hover {
+    color: #000;
+    background-color: #ccc;
+    text-decoration: none;
+}
 
 /* ============================================================
    ARCHIVE EXTENSIONS (Advanced Mode & Tags)
