@@ -166,6 +166,38 @@ h1 {
     letter-spacing: 0.5px;
 }
 
+.tag-editor {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+
+.tags-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+
+.tag-pill {
+    background: #e0e0e0;
+    border-radius: 12px;
+    padding: 2px 8px;
+    font-size: 0.85em;
+    display: inline-block;
+}
+
+.tag-pill a {
+    color: #666;
+    text-decoration: none;
+    margin-left: 4px;
+    font-weight: bold;
+}
+
+.tag-pill a:hover {
+    color: #d00;
+}
+
 .tag-input {
     width: 100%;
     padding: 8px 0;

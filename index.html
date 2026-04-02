@@ -121,6 +121,10 @@
             if (isAdvancedMode) {
                 document.body.classList.add('advanced-mode');
                 advancedNotice.style.display = 'block';
+                // Dynamically load the TagManager class
+                const script = document.createElement('script');
+                script.src = 'advanced_tags.js';
+                document.head.appendChild(script);
             }
 
             const savedBg = localStorage.getItem('plurk_bg_base64');
@@ -136,21 +140,7 @@
             }
         };
 
-        // Tag Handling (Advanced Mode Only)
-        async function updateTags(plurkId, newTags) {
-            if (!isAdvancedMode) return;
-            try {
-                const response = await fetch('/api/tags', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ plurk_id: plurkId, tags: newTags })
-                });
-                if (!response.ok) throw new Error('Failed to update');
-                console.log(`Tags updated for ${plurkId}`);
-            } catch (err) {
-                alert("標籤更新失敗，請檢查 Server 狀態。");
-            }
-        }
+
 
         function processData() {
             const type = typeFilter.value;
@@ -181,15 +171,25 @@
                 let typeName = (p.plurk_type === 1) ? "Private" : (p.plurk_type === 4 ? "Anonymous" : "Public");
 
                 // Construct Tag UI based on mode
-                const tagSection = isAdvancedMode ? `
-                    <div class="tag-editor">
-                        <input type="text"
-                               class="tag-input"
-                               placeholder="Edit tags (comma separated)..."
-                               value="${p.tags || ''}"
-                               onchange="updateTags(${p.plurk_id}, this.value)">
-                    </div>` : (p.tags ? `<div class="tag-display">Tags: ${p.tags}</div>` : '');
+                let tagSection = '';
+                if (isAdvancedMode) {
+                    // Generate interactive pills for existing tags
+                    const tagPills = (p.tags && p.tags.length > 0) ? p.tags.map(t =>
+                        `<span class="tag-pill">${t} <a href="#" onclick="TagManager.removeTag(this.parentElement, ${p.plurk_id}, '${t}'); return false;">✖</a></span>`
+                    ).join('') : '';
 
+                    tagSection = `
+                        <div class="tag-editor">
+                            <div class="tags-container">${tagPills}</div>
+                            <input type="text"
+                                   class="tag-input"
+                                   placeholder="Add tag & hit Enter..."
+                                   onchange="TagManager.addTag(this, ${p.plurk_id})">
+                        </div>`;
+                } else if (p.tags && p.tags.length > 0) {
+                    // Basic mode: Read-only comma-separated list
+                    tagSection = `<div class="tag-display">Tags: ${p.tags.join(', ')}</div>`;
+                }
                 return `
                     <div class="plurk-item" data-id="${p.plurk_id}">
                         <div class="item-header">
