@@ -12,8 +12,8 @@
     <header>
         <h1>Archive</h1>
         <div class="subtitle">Collected Favorite Plurks</div>
-
     </header>
+
     <div class="sticky-header-group">
         <div id="advanced-notice" class="mode-banner" style="display:none;">
             ADVANCED MODE ENABLED (TAG EDITING ACTIVE)
@@ -39,10 +39,9 @@
                 <input type="text" id="search-input" placeholder="Keyword...">
             </div>
             <div class="nav-item">
-                <input type="file" id="bg-upload" accept="image/*" style="display:none;"
-                    onchange="handleBgUpload(this)">
-                <span class="bg-btn" onclick="document.getElementById('bg-upload').click()">Choose BG</span>
-                <span id="clear-bg-btn" class="bg-btn clear-btn" style="display:none;" onclick="clearBg()">Reset</span>
+                <input type="file" id="bg-upload" accept="image/*" style="display:none;">
+                <span id="choose-bg-btn" class="bg-btn">Choose BG</span>
+                <span id="clear-bg-btn" class="bg-btn clear-btn" style="display:none;">Reset</span>
             </div>
         </div>
     </div>
@@ -58,6 +57,90 @@
     <script src="backup_js/manifest.js"></script>
 
     <script>
+        /* ============================================================
+           TAG MANAGER (Advanced Mode Only)
+           Handles add/remove tag operations via Flask API.
+           ============================================================ */
+        class TagManager {
+            /**
+             * POSTs a new tag to the server and appends a pill to the UI on success.
+             * Uses data-tag attribute on the pill anchor for event delegation compatibility.
+             */
+            static async addTag(inputElement, plurkId) {
+                const id = parseInt(plurkId, 10);
+                const newTag = inputElement.value.trim();
+                if (!newTag) return;
+
+                try {
+                    const response = await fetch('/api/tags', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ plurk_id: id, tag_name: newTag })
+                    });
+
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    const result = await response.json();
+
+                    if (result.ok) {
+                        // Append new pill — uses data-tag for delegated click handler
+                        const pillHtml = `<span class="tag-pill">${newTag} <a href="#" data-tag="${newTag}">✖</a></span>`;
+                        const tagsContainer = inputElement.closest('.tag-editor').querySelector('.tags-container');
+                        tagsContainer.insertAdjacentHTML('beforeend', pillHtml);
+
+                        inputElement.value = '';
+                        TagManager._flashInput(inputElement, true);
+                    } else {
+                        throw new Error(result.error || 'Server rejected the tag');
+                    }
+                } catch (err) {
+                    console.error("Tag addition error:", err);
+                    TagManager._flashInput(inputElement, false);
+                }
+            }
+
+            /**
+             * DELETEs a tag from the server and removes the pill from the UI on success.
+             */
+            static async removeTag(pillElement, plurkId, tagName) {
+                const id = parseInt(plurkId, 10);
+
+                try {
+                    const response = await fetch('/api/tags', {
+                        method: 'DELETE',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ plurk_id: id, tag_name: tagName })
+                    });
+
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    const result = await response.json();
+
+                    if (result.ok) {
+                        pillElement.remove();
+                    } else {
+                        throw new Error(result.error || 'Server rejected the deletion');
+                    }
+                } catch (err) {
+                    console.error("Tag deletion error:", err);
+                }
+            }
+
+            /**
+             * Flashes the tag input border green (success) or red (failure).
+             * Reverts to default after the animation completes.
+             */
+            static _flashInput(inputElement, success) {
+                const color = success ? '#4caf50' : '#e53935';
+                inputElement.style.transition = 'border-color 0.1s ease';
+                inputElement.style.borderBottomColor = color;
+                setTimeout(() => {
+                    inputElement.style.borderBottomColor = '';
+                }, 800);
+            }
+        }
+
+        /* ============================================================
+           MAIN
+           ============================================================ */
         const monthSelect = document.getElementById('month-select');
         const typeFilter = document.getElementById('type-filter');
         const searchInput = document.getElementById('search-input');
@@ -73,34 +156,31 @@
         let currentPage = 0;
         const pageSize = 20;
 
-        // Environment Detection
+        // Detect advanced mode by protocol — http(s) means Flask server is running
         const isAdvancedMode = window.location.protocol.startsWith('http');
 
-        // Helper to convert URLs into clickable links
+        // Convert plain URLs in text into clickable anchor tags
         function linkify(text) {
             if (!text) return "";
             const urlPattern = /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/g;
-            return text.replace(urlPattern, function (url) {
-                return `<a href="${url}" target="_blank" >${url}</a>`;
-            });
+            return text.replace(urlPattern, url => `<a href="${url}" target="_blank">${url}</a>`);
         }
 
-        // Background logic
+        // --- Background ---
+
         function handleBgUpload(input) {
             const file = input.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function (e) {
-                    const base64Image = e.target.result;
-                    try {
-                        localStorage.setItem('plurk_bg_base64', base64Image);
-                        applyBg(base64Image);
-                    } catch (err) {
-                        alert("檔案過大，無法儲存設定！請選擇較小的圖片。");
-                    }
-                };
-                reader.readAsDataURL(file);
-            }
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                try {
+                    localStorage.setItem('plurk_bg_base64', e.target.result);
+                    applyBg(e.target.result);
+                } catch (err) {
+                    alert("檔案過大，無法儲存設定！請選擇較小的圖片。");
+                }
+            };
+            reader.readAsDataURL(file);
         }
 
         function clearBg() {
@@ -111,20 +191,17 @@
         }
 
         function applyBg(url) {
-            if (url) {
-                document.body.style.backgroundImage = `url('${url}')`;
-                clearBgBtn.style.display = 'inline-block';
-            }
+            if (!url) return;
+            document.body.style.backgroundImage = `url('${url}')`;
+            clearBgBtn.style.display = 'inline-block';
         }
+
+        // --- Init ---
 
         window.onload = function () {
             if (isAdvancedMode) {
                 document.body.classList.add('advanced-mode');
                 advancedNotice.style.display = 'block';
-                // Dynamically load the TagManager class
-                const script = document.createElement('script');
-                script.src = 'advanced_tags.js';
-                document.head.appendChild(script);
             }
 
             const savedBg = localStorage.getItem('plurk_bg_base64');
@@ -138,9 +215,40 @@
                     monthSelect.appendChild(opt);
                 });
             }
+
+            // Delegated keydown: Enter on tag input triggers addTag
+            displayArea.addEventListener('keydown', function (e) {
+                if (e.target.classList.contains('tag-input') && e.key === 'Enter') {
+                    const plurkId = e.target.closest('.plurk-item').dataset.id;
+                    TagManager.addTag(e.target, plurkId);
+                }
+            });
+
+            // Delegated click: ✖ on any tag pill triggers removeTag
+            displayArea.addEventListener('click', function (e) {
+                const deleteBtn = e.target.closest('.tag-pill a');
+                if (!deleteBtn) return;
+                e.preventDefault();
+                const plurkItem = deleteBtn.closest('.plurk-item');
+                TagManager.removeTag(deleteBtn.parentElement, plurkItem.dataset.id, deleteBtn.dataset.tag);
+            });
+
+            // Background UI Event Listeners
+            const bgUpload = document.getElementById('bg-upload');
+            const chooseBgBtn = document.getElementById('choose-bg-btn');
+
+            chooseBgBtn.addEventListener('click', function () {
+                bgUpload.click();
+            });
+
+            bgUpload.addEventListener('change', function () {
+                handleBgUpload(this);
+            });
+
+            clearBgBtn.addEventListener('click', clearBg);
         };
 
-
+        // --- Data & Rendering ---
 
         function processData() {
             const type = typeFilter.value;
@@ -168,28 +276,24 @@
             }
 
             const html = pageItems.map(p => {
-                let typeName = (p.plurk_type === 1) ? "Private" : (p.plurk_type === 4 ? "Anonymous" : "Public");
+                const typeName = (p.plurk_type === 1) ? "Private" : (p.plurk_type === 4 ? "Anonymous" : "Public");
 
-                // Construct Tag UI based on mode
+                // Build tag section based on mode
                 let tagSection = '';
                 if (isAdvancedMode) {
-                    // Generate interactive pills for existing tags
-                    const tagPills = (p.tags && p.tags.length > 0) ? p.tags.map(t =>
-                        `<span class="tag-pill">${t} <a href="#" onclick="TagManager.removeTag(this.parentElement, ${p.plurk_id}, '${t}'); return false;">✖</a></span>`
-                    ).join('') : '';
-
+                    const tagPills = (p.tags && p.tags.length > 0)
+                        ? p.tags.map(t => `<span class="tag-pill">${t} <a href="#" data-tag="${t}">✖</a></span>`).join('')
+                        : '';
                     tagSection = `
                         <div class="tag-editor">
                             <div class="tags-container">${tagPills}</div>
-                            <input type="text"
-                                   class="tag-input"
-                                   placeholder="Add tag & hit Enter..."
-                                   onchange="TagManager.addTag(this, ${p.plurk_id})">
+                            <input type="text" class="tag-input" placeholder="Add tag & hit Enter...">
                         </div>`;
                 } else if (p.tags && p.tags.length > 0) {
-                    // Basic mode: Read-only comma-separated list
+                    // Basic mode: read-only
                     tagSection = `<div class="tag-display">Tags: ${p.tags.join(', ')}</div>`;
                 }
+
                 return `
                     <div class="plurk-item" data-id="${p.plurk_id}">
                         <div class="item-header">
@@ -201,14 +305,15 @@
                         <div class="footer-links">
                             <a href="${p.plurk_url || '#'}" target="_blank">VIEW ON PLURK →</a>
                         </div>
-                    </div>
-                `;
+                    </div>`;
             }).join('');
 
             displayArea.insertAdjacentHTML('beforeend', html);
             currentPage++;
             loadMoreContainer.style.display = (end < filteredData.length) ? 'block' : 'none';
         }
+
+        // --- Event Listeners ---
 
         monthSelect.addEventListener('change', function () {
             const ym = this.value;
