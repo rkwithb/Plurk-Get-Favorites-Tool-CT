@@ -141,20 +141,22 @@
         /* ============================================================
            MAIN
            ============================================================ */
-        const monthSelect = document.getElementById('month-select');
-        const typeFilter = document.getElementById('type-filter');
-        const searchInput = document.getElementById('search-input');
-        const displayArea = document.getElementById('display-area');
-        const loadMoreBtn = document.getElementById('load-more-btn');
+        const monthSelect       = document.getElementById('month-select');
+        const typeFilter        = document.getElementById('type-filter');
+        const searchInput       = document.getElementById('search-input');
+        const displayArea       = document.getElementById('display-area');
+        const loadMoreBtn       = document.getElementById('load-more-btn');
         const loadMoreContainer = document.getElementById('load-more-container');
-        const initialMsg = document.getElementById('initial-msg');
-        const clearBgBtn = document.getElementById('clear-bg-btn');
-        const advancedNotice = document.getElementById('advanced-notice');
+        const initialMsg        = document.getElementById('initial-msg');
+        const bgUpload          = document.getElementById('bg-upload');
+        const chooseBgBtn       = document.getElementById('choose-bg-btn');
+        const clearBgBtn        = document.getElementById('clear-bg-btn');
+        const advancedNotice    = document.getElementById('advanced-notice');
 
         let allDataInMonth = [];
-        let filteredData = [];
-        let currentPage = 0;
-        const pageSize = 20;
+        let filteredData   = [];
+        let currentPage    = 0;
+        const pageSize     = 20;
 
         // Detect advanced mode by protocol — http(s) means Flask server is running
         const isAdvancedMode = window.location.protocol.startsWith('http');
@@ -202,6 +204,23 @@
             if (isAdvancedMode) {
                 document.body.classList.add('advanced-mode');
                 advancedNotice.style.display = 'block';
+
+                // Delegated keydown: Enter on tag input triggers addTag
+                displayArea.addEventListener('keydown', function (e) {
+                    if (e.target.classList.contains('tag-input') && e.key === 'Enter') {
+                        const plurkId = e.target.closest('.plurk-item').dataset.id;
+                        TagManager.addTag(e.target, plurkId);
+                    }
+                });
+
+                // Delegated click: ✖ on any tag pill triggers removeTag
+                displayArea.addEventListener('click', function (e) {
+                    const deleteBtn = e.target.closest('.tag-pill a');
+                    if (!deleteBtn) return;
+                    e.preventDefault();
+                    const plurkItem = deleteBtn.closest('.plurk-item');
+                    TagManager.removeTag(deleteBtn.parentElement, plurkItem.dataset.id, deleteBtn.dataset.tag);
+                });
             }
 
             const savedBg = localStorage.getItem('plurk_bg_base64');
@@ -216,45 +235,19 @@
                 });
             }
 
-            // Delegated keydown: Enter on tag input triggers addTag
-            displayArea.addEventListener('keydown', function (e) {
-                if (e.target.classList.contains('tag-input') && e.key === 'Enter') {
-                    const plurkId = e.target.closest('.plurk-item').dataset.id;
-                    TagManager.addTag(e.target, plurkId);
-                }
-            });
-
-            // Delegated click: ✖ on any tag pill triggers removeTag
-            displayArea.addEventListener('click', function (e) {
-                const deleteBtn = e.target.closest('.tag-pill a');
-                if (!deleteBtn) return;
-                e.preventDefault();
-                const plurkItem = deleteBtn.closest('.plurk-item');
-                TagManager.removeTag(deleteBtn.parentElement, plurkItem.dataset.id, deleteBtn.dataset.tag);
-            });
-
-            // Background UI Event Listeners
-            const bgUpload = document.getElementById('bg-upload');
-            const chooseBgBtn = document.getElementById('choose-bg-btn');
-
-            chooseBgBtn.addEventListener('click', function () {
-                bgUpload.click();
-            });
-
-            bgUpload.addEventListener('change', function () {
-                handleBgUpload(this);
-            });
-
+            // Background UI event listeners
+            chooseBgBtn.addEventListener('click', () => bgUpload.click());
+            bgUpload.addEventListener('change', () => handleBgUpload(bgUpload));
             clearBgBtn.addEventListener('click', clearBg);
         };
 
         // --- Data & Rendering ---
 
         function processData() {
-            const type = typeFilter.value;
+            const type    = typeFilter.value;
             const keyword = searchInput.value.toLowerCase().trim();
-            filteredData = allDataInMonth.filter(p => {
-                const matchType = (type === 'all' || p.plurk_type.toString() === type);
+            filteredData  = allDataInMonth.filter(p => {
+                const matchType    = (type === 'all' || p.plurk_type.toString() === type);
                 const matchKeyword = (!keyword || p.content_raw.toLowerCase().includes(keyword));
                 return matchType && matchKeyword;
             });
@@ -265,8 +258,8 @@
         }
 
         function renderNextPage() {
-            const start = currentPage * pageSize;
-            const end = start + pageSize;
+            const start     = currentPage * pageSize;
+            const end       = start + pageSize;
             const pageItems = filteredData.slice(start, end);
 
             if (pageItems.length === 0 && currentPage === 0) {
