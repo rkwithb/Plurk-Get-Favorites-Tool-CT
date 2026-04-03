@@ -89,6 +89,8 @@
 
                         inputElement.value = '';
                         TagManager._flashInput(inputElement, true);
+                        // Update the global tags display after successful addition
+                        renderAllTagsDisplay(monthSelect.value);
                     } else {
                         throw new Error(result.error || 'Server rejected the tag');
                     }
@@ -116,6 +118,8 @@
 
                     if (result.ok) {
                         pillElement.remove();
+                        // Update the global tags display after successful deletion
+                        renderAllTagsDisplay();
                     } else {
                         throw new Error(result.error || 'Server rejected the deletion');
                     }
@@ -141,22 +145,22 @@
         /* ============================================================
            MAIN
            ============================================================ */
-        const monthSelect       = document.getElementById('month-select');
-        const typeFilter        = document.getElementById('type-filter');
-        const searchInput       = document.getElementById('search-input');
-        const displayArea       = document.getElementById('display-area');
-        const loadMoreBtn       = document.getElementById('load-more-btn');
+        const monthSelect = document.getElementById('month-select');
+        const typeFilter = document.getElementById('type-filter');
+        const searchInput = document.getElementById('search-input');
+        const displayArea = document.getElementById('display-area');
+        const loadMoreBtn = document.getElementById('load-more-btn');
         const loadMoreContainer = document.getElementById('load-more-container');
-        const initialMsg        = document.getElementById('initial-msg');
-        const bgUpload          = document.getElementById('bg-upload');
-        const chooseBgBtn       = document.getElementById('choose-bg-btn');
-        const clearBgBtn        = document.getElementById('clear-bg-btn');
-        const advancedNotice    = document.getElementById('advanced-notice');
+        const initialMsg = document.getElementById('initial-msg');
+        const bgUpload = document.getElementById('bg-upload');
+        const chooseBgBtn = document.getElementById('choose-bg-btn');
+        const clearBgBtn = document.getElementById('clear-bg-btn');
+        const advancedNotice = document.getElementById('advanced-notice');
 
         let allDataInMonth = [];
-        let filteredData   = [];
-        let currentPage    = 0;
-        const pageSize     = 20;
+        let filteredData = [];
+        let currentPage = 0;
+        const pageSize = 20;
 
         // Detect advanced mode by protocol — http(s) means Flask server is running
         const isAdvancedMode = window.location.protocol.startsWith('http');
@@ -243,23 +247,114 @@
 
         // --- Data & Rendering ---
 
+        /**
+         * Fetches tags from the database via the /api/tags endpoint.
+         * Optionally filters tags by month.
+         * Only available in advanced mode (when Flask server is running).
+         */
+        async function getAllTagsFromMonth(month) {
+            if (!isAdvancedMode) return [];
+
+            try {
+                let url = '/api/tags';
+                if (month) {
+                    url += '?month=' + encodeURIComponent(month);
+                }
+                const response = await fetch(url);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const result = await response.json();
+                return result.tags ? result.tags.map(t => t.name).sort() : [];
+            } catch (err) {
+                console.error("Failed to fetch tags from database:", err);
+                return [];
+            }
+        }
+
+        /**
+         * Renders the all-tags display at the top of displayArea.
+         * Fetches tags from the database and updates the UI.
+         * Preserves the collapsed/expanded state.
+         */
+        async function renderAllTagsDisplay(month) {
+            if (!isAdvancedMode) return;
+
+            const allTags = await getAllTagsFromMonth(month);
+            const tagsHtml = allTags.map(tag => `<span class="tag-pill">${tag}</span>`).join('');
+            const tagsDisplay = document.getElementById('all-tags-display');
+            const headerSpan = document.querySelector('#tags-header span:last-child');
+
+            if (tagsDisplay) {
+                tagsDisplay.innerHTML = tagsHtml;
+                if (headerSpan) {
+                    headerSpan.textContent = `Existing Tags (${allTags.length})`;
+                }
+            }
+        }
+
         function processData() {
-            const type    = typeFilter.value;
+            const type = typeFilter.value;
             const keyword = searchInput.value.toLowerCase().trim();
-            filteredData  = allDataInMonth.filter(p => {
-                const matchType    = (type === 'all' || p.plurk_type.toString() === type);
+            filteredData = allDataInMonth.filter(p => {
+                const matchType = (type === 'all' || p.plurk_type.toString() === type);
                 const matchKeyword = (!keyword || p.content_raw.toLowerCase().includes(keyword));
                 return matchType && matchKeyword;
             });
             currentPage = 0;
             displayArea.innerHTML = '';
             displayArea.style.display = 'block';
+
+            // Render all existing tags at the top if in advanced mode
+            if (isAdvancedMode) {
+                const isCollapsed = localStorage.getItem('tags-section-collapsed') === 'true';
+                const tagsSectionHtml = `
+                    <div id="all-tags-display-section" class="tags-display-section" style="margin-bottom: 20px;">
+                        <div id="tags-header" style="font-weight: bold; margin-bottom: 10px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+                            <span id="tags-toggle-icon" style="display: inline-block; transition: transform 0.2s;">▼</span>
+                            <span>Existing Tags (loading...)</span>
+                        </div>
+                        <div id="all-tags-display" style="display: flex; flex-wrap: wrap; gap: 8px; ${isCollapsed ? 'display: none;' : ''}"></div>
+                    </div>`;
+                displayArea.insertAdjacentHTML('afterbegin', tagsSectionHtml);
+
+                // Add click handler for collapse/expand
+                setTimeout(() => {
+                    const header = document.getElementById('tags-header');
+                    if (header) {
+                        header.addEventListener('click', toggleTagsSection);
+                    }
+                }, 0);
+
+                // Fetch and render tags asynchronously, passing the current month
+                renderAllTagsDisplay(monthSelect.value);
+            }
+
             renderNextPage();
         }
 
+        /**
+         * Toggle the collapse/expand state of the tags section.
+         */
+        function toggleTagsSection() {
+            const tagsDisplay = document.getElementById('all-tags-display');
+            const toggleIcon = document.getElementById('tags-toggle-icon');
+
+            if (tagsDisplay) {
+                const isCurrentlyVisible = tagsDisplay.style.display !== 'none';
+                tagsDisplay.style.display = isCurrentlyVisible ? 'none' : 'flex';
+
+                // Rotate the arrow icon
+                if (toggleIcon) {
+                    toggleIcon.style.transform = isCurrentlyVisible ? 'rotate(-90deg)' : 'rotate(0deg)';
+                }
+
+                // Save preference to localStorage
+                localStorage.setItem('tags-section-collapsed', !isCurrentlyVisible);
+            }
+        }
+
         function renderNextPage() {
-            const start     = currentPage * pageSize;
-            const end       = start + pageSize;
+            const start = currentPage * pageSize;
+            const end = start + pageSize;
             const pageItems = filteredData.slice(start, end);
 
             if (pageItems.length === 0 && currentPage === 0) {

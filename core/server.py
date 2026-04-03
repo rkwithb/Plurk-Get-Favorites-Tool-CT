@@ -18,7 +18,7 @@ API endpoints:
     GET  /              → serve index.html
     GET  /health        → server ready check (returns {"status": "ok"})
     GET  /api/plurks    → query plurks with optional filters and sort
-    GET  /api/tags      → list all tags
+    GET  /api/tags      → list tags, optionally filtered by month
     POST /api/tags      → add a tag to a plurk
     DELETE /api/tags    → remove a tag from a plurk
 
@@ -27,6 +27,9 @@ API endpoints:
     nick_name=str       filter by post owner nick name
     plurk_type=int      filter by type (0=public, 1=private, 4=anonymous)
     sort=str            sort order: "newest" (default, only supported value in v1)
+
+/api/tags query parameters:
+    month=YYYY_MM       (optional) filter tags to only those used in the specified month
 
 Tag request body (JSON):
     {"plurk_id": 123, "tag_name": "my tag"}
@@ -176,10 +179,33 @@ def _create_app() -> Flask:
 
     @app.route("/api/tags", methods=["GET"])
     def api_tags_list():
-        """List all tags in the database."""
+        """
+        List tags in the database, optionally filtered by month.
+
+        Query params:
+            month=YYYY_MM   (optional) filter tags to only those used in the specified month
+        """
+        month = request.args.get("month", "").strip()
+
         try:
             cursor = _conn.cursor()
-            cursor.execute("SELECT id, name FROM tags ORDER BY name")
+
+            if month:
+                # Convert YYYY_MM to ISO prefix for posted2 LIKE filter
+                iso_prefix = month.replace("_", "-")
+                sql = """
+                    SELECT DISTINCT t.id, t.name
+                    FROM tags t
+                    LEFT JOIN plurk_tags pt ON t.id = pt.tag_id
+                    LEFT JOIN favorites f  ON pt.plurk_id = f.plurk_id
+                    WHERE f.posted2 LIKE ?
+                    ORDER BY t.name
+                """
+                cursor.execute(sql, (f"{iso_prefix}%",))
+            else:
+                # No month filter — return all tags
+                cursor.execute("SELECT id, name FROM tags ORDER BY name")
+
             tags = [{"id": row[0], "name": row[1]} for row in cursor.fetchall()]
             return jsonify({"tags": tags})
         except Exception as e:

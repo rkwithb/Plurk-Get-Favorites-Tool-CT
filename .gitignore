@@ -8,6 +8,7 @@ dist/
 core/version.py
 
 #VS code
+.vscode/
 *.code-workspace
 
 # Output folders
