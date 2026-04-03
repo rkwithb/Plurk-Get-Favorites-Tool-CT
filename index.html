@@ -343,7 +343,7 @@
             if (tagsDisplay) {
                 tagsDisplay.innerHTML = tagsHtml;
                 if (headerSpan) {
-                    headerSpan.textContent = `Existing Tags (${allTags.length})`;
+                    headerSpan.textContent = `Existing Tags (${allTags.length}) — refresh page to update`;
                 }
             }
         }
@@ -367,7 +367,7 @@
                     <div id="all-tags-display-section" class="tags-display-section" style="margin-bottom: 20px;">
                         <div id="tags-header" style="font-weight: bold; margin-bottom: 10px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
                             <span id="tags-toggle-icon" style="display: inline-block; transition: transform 0.2s;">▼</span>
-                            <span>Existing Tags (loading...)</span>
+                            <span>Existing Tags (loading...) — refresh page to update</span>
                         </div>
                         <div id="all-tags-display" style="display: flex; flex-wrap: wrap; gap: 8px; ${isCollapsed ? 'display: none;' : ''}"></div>
                     </div>`;
