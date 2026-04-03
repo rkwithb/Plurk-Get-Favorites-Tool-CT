@@ -89,8 +89,6 @@
 
                         inputElement.value = '';
                         TagManager._flashInput(inputElement, true);
-                        // Update the global tags display after successful addition
-                        renderAllTagsDisplay(monthSelect.value);
                     } else {
                         throw new Error(result.error || 'Server rejected the tag');
                     }
@@ -118,8 +116,6 @@
 
                     if (result.ok) {
                         pillElement.remove();
-                        // Update the global tags display after successful deletion
-                        renderAllTagsDisplay();
                     } else {
                         throw new Error(result.error || 'Server rejected the deletion');
                     }
@@ -161,6 +157,7 @@
         let filteredData = [];
         let currentPage = 0;
         const pageSize = 20;
+        let apiPlurksCache = {}; // Cache for /api/plurks responses keyed by month
 
         // Detect advanced mode by protocol — http(s) means Flask server is running
         const isAdvancedMode = window.location.protocol.startsWith('http');
@@ -271,6 +268,66 @@
         }
 
         /**
+         * Fetches tags for a specific plurk from the database.
+         * Caches month data to avoid duplicate API calls.
+         */
+        async function getTagsForPlurk(plurkId) {
+            if (!isAdvancedMode) return [];
+
+            try {
+                const month = monthSelect.value;
+
+                // Check cache first
+                if (!apiPlurksCache[month]) {
+                    // Fetch all plurks for this month and cache them
+                    const response = await fetch(`/api/plurks?month=${encodeURIComponent(month)}`);
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    const result = await response.json();
+                    apiPlurksCache[month] = result.plurks || [];
+                }
+
+                // Find the specific plurk in cache and return its tags
+                const plurks = apiPlurksCache[month];
+                const plutkIdInt = parseInt(plurkId, 10);
+                const plurk = plurks.find(p => p.plurk_id === plutkIdInt);
+
+                return plurk ? (plurk.tags || []) : [];
+            } catch (err) {
+                console.error(`Failed to fetch tags for plurk ${plurkId}:`, err);
+                return [];
+            }
+        }
+
+        /**
+         * Populates tags for a visible plurk-item from the database.
+         */
+        async function populatePlurkTags(plurkElement) {
+            if (!isAdvancedMode) return;
+
+            const plurkId = plurkElement.dataset.id;
+            const tagsContainer = plurkElement.querySelector('.tags-container');
+
+            if (!tagsContainer) return;
+
+            const tags = await getTagsForPlurk(plurkId);
+
+            // Render tag pills
+            const tagPills = tags.map(t => `<span class="tag-pill">${t} <a href="#" data-tag="${t}">✖</a></span>`).join('');
+            tagsContainer.innerHTML = tagPills;
+        }
+
+        /**
+         * Populate tags for all visible plurk items (called after rendering new page).
+         */
+        async function populateAllVisibleTags() {
+            if (!isAdvancedMode) return;
+
+            const plurkItems = displayArea.querySelectorAll('.plurk-item');
+            const promises = Array.from(plurkItems).map(item => populatePlurkTags(item));
+            await Promise.all(promises);
+        }
+
+        /**
          * Renders the all-tags display at the top of displayArea.
          * Fetches tags from the database and updates the UI.
          * Preserves the collapsed/expanded state.
@@ -369,16 +426,14 @@
                 // Build tag section based on mode
                 let tagSection = '';
                 if (isAdvancedMode) {
-                    const tagPills = (p.tags && p.tags.length > 0)
-                        ? p.tags.map(t => `<span class="tag-pill">${t} <a href="#" data-tag="${t}">✖</a></span>`).join('')
-                        : '';
+                    // In advanced mode, create empty tag container that will be populated from DB
                     tagSection = `
                         <div class="tag-editor">
-                            <div class="tags-container">${tagPills}</div>
+                            <div class="tags-container"></div>
                             <input type="text" class="tag-input" placeholder="Add tag & hit Enter...">
                         </div>`;
                 } else if (p.tags && p.tags.length > 0) {
-                    // Basic mode: read-only
+                    // Basic mode: read-only tags from backup_js
                     tagSection = `<div class="tag-display">Tags: ${p.tags.join(', ')}</div>`;
                 }
 
@@ -399,6 +454,9 @@
             displayArea.insertAdjacentHTML('beforeend', html);
             currentPage++;
             loadMoreContainer.style.display = (end < filteredData.length) ? 'block' : 'none';
+
+            // Populate tags from database for all newly rendered plurks
+            populateAllVisibleTags();
         }
 
         // --- Event Listeners ---
@@ -406,6 +464,10 @@
         monthSelect.addEventListener('change', function () {
             const ym = this.value;
             if (!ym) return;
+
+            // Clear API cache when switching months
+            apiPlurksCache = {};
+
             initialMsg.style.display = 'none';
             displayArea.innerHTML = '<div class="no-data">LOADING...</div>';
             displayArea.style.display = 'block';
