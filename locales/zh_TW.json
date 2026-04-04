@@ -31,6 +31,7 @@
     "btn_open_index":                   "一般瀏覽（無 Tag）",
     "btn_open_viewer":                  "進階瀏覽（含 Tag）",
     "btn_open_backup_dir":              "開啟備份資料夾",
+    "btn_reexport_js":                  "重新產出 JS",
 
     "dialog_title_confirm_quit":        "確認離開",
     "dialog_msg_backup_running":        "備份進行中，確定要離開？",
@@ -81,6 +82,9 @@
 
     "log_export_js":                    "[>>] 正在產出 JS 檔案：{months}",
     "log_export_done":                  "[+] JS 檔案產出完成。",
+
+    "log_reexport_start":               "[>>] 正在從資料庫重新產出所有 JS 檔案...",
+    "log_reexport_error":               "[!!] 重新產出 JS 發生錯誤：{error}",
 
     "log_worker_crash":                 "[!!] 發生未預期的錯誤，備份已中斷。請查看 log 檔案以了解詳情。",
 

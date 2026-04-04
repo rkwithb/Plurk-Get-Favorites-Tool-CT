@@ -21,6 +21,7 @@ from core.auth import get_keys, save_keys, build_plurk_client, start_oauth, fini
 from core.backup import run_backup_task
 from core.config import load_config, save_config
 from core.db import init_db, get_total_count
+from core.export import export_js_files
 from core.i18n import load_language, get_language, t, SUPPORTED_LANGUAGES
 from core.logger import setup_logger, get_logger, shutdown_logger, _get_existing_log_path
 from core.paths import BACKUP_DIR, DB_PATH, INDEX_PATH, ensure_backup_dir
@@ -189,6 +190,8 @@ class App(ctk.CTk):
         self._running = False
         self._start_btn.configure(state="normal", text=t("btn_start_backup"))
         self._mode_dropdown.configure(state="normal")
+        self._open_viewer_btn.configure(state="normal")
+        self._reexport_btn.configure(state="normal")
         self._append_log("")
         self._append_log(t("log_worker_crash"))
         self._logger.error("Worker thread crashed — UI reset to idle state")
@@ -528,9 +531,12 @@ class App(ctk.CTk):
         )
         # Not packed on init — shown alongside _date_entry in date mode only
 
-        # Row 3 — [Start Backup] full width
+        # Row 3 — start_row: [Start Backup] expands to fill, [開啟備份資料夾] fixed size at right
+        start_row = ctk.CTkFrame(backup, fg_color="transparent")
+        start_row.grid(row=3, column=0, sticky="ew", padx=16, pady=(0, 14))
+
         self._start_btn = ctk.CTkButton(
-            backup,
+            start_row,
             text=t("btn_start_backup"),
             height=38,
             font=ctk.CTkFont(size=13, weight="bold"),
@@ -540,7 +546,22 @@ class App(ctk.CTk):
             corner_radius=8,
             command=self._on_start,
         )
-        self._start_btn.grid(row=3, column=0, sticky="ew", padx=16, pady=(0, 14))
+        self._start_btn.pack(side="left", fill="x", expand=True, padx=(0, 8))
+
+        ctk.CTkButton(
+            start_row,
+            text=t("btn_open_backup_dir"),
+            height=38,
+            fg_color="transparent",
+            hover_color=CLR_BTN_HOVER,
+            border_color=CLR_BORDER,
+            border_width=1,
+            text_color=CLR_TEXT,
+            font=ctk.CTkFont(size=12),
+            corner_radius=8,
+            command=self._open_backup_dir,
+        ).pack(side="left")
+
         # ── Stats Bar ────────────────────────────────────────────────
         stats_wrapper = ctk.CTkFrame(self, fg_color="transparent", corner_radius=0)
         stats_wrapper.grid(row=3, column=0, sticky="ew", padx=20, pady=0)
@@ -611,6 +632,10 @@ class App(ctk.CTk):
         self._log_box.grid(row=1, column=0, sticky="nsew", padx=12, pady=(0, 12))
 
         # ── Bottom Bar ───────────────────────────────────────────────
+        # col 0: [一般瀏覽（無 Tag）] — always enabled, no DB involvement
+        # col 1: [進階瀏覽（含 Tag）] — disabled during backup (starts Flask/DB)
+        # col 2: [重新產出 JS]        — disabled during backup and during reexport
+        # col 3: Port field (sticky="e")
         bottom = ctk.CTkFrame(self, fg_color=CLR_PANEL, corner_radius=0)
         bottom.grid(row=5, column=0, sticky="ew", pady=(12, 0))
         bottom.columnconfigure(3, weight=1)
@@ -628,7 +653,8 @@ class App(ctk.CTk):
             command=self._open_index,
         ).grid(row=0, column=0, padx=(16, 4), pady=10)
 
-        ctk.CTkButton(
+        # Stored as instance var — disabled during backup run
+        self._open_viewer_btn = ctk.CTkButton(
             bottom,
             text=t("btn_open_viewer"),
             height=36,
@@ -639,11 +665,13 @@ class App(ctk.CTk):
             text_color=CLR_TEXT,
             font=ctk.CTkFont(size=12),
             command=self._open_viewer,
-        ).grid(row=0, column=1, padx=4, pady=10)
+        )
+        self._open_viewer_btn.grid(row=0, column=1, padx=4, pady=10)
 
-        ctk.CTkButton(
+        # Stored as instance var — disabled during backup run and during reexport
+        self._reexport_btn = ctk.CTkButton(
             bottom,
-            text=t("btn_open_backup_dir"),
+            text=t("btn_reexport_js"),
             height=36,
             fg_color="transparent",
             hover_color=CLR_BTN_HOVER,
@@ -651,8 +679,9 @@ class App(ctk.CTk):
             border_width=1,
             text_color=CLR_TEXT,
             font=ctk.CTkFont(size=12),
-            command=self._open_backup_dir,
-        ).grid(row=0, column=2, padx=4, pady=10)
+            command=self._on_reexport,
+        )
+        self._reexport_btn.grid(row=0, column=2, padx=4, pady=10)
 
         # Port field — right side of bottom bar
         port_frame = ctk.CTkFrame(bottom, fg_color="transparent")
@@ -1033,9 +1062,11 @@ class App(ctk.CTk):
         # Reset stop event for this run
         self._stop_event.clear()
 
-        # Reset UI — disable both start button and mode dropdown during run
+        # Disable DB-related controls during backup run
         self._start_btn.configure(state="disabled", text=t("btn_running"))
         self._mode_dropdown.configure(state="disabled")
+        self._open_viewer_btn.configure(state="disabled")
+        self._reexport_btn.configure(state="disabled")
         self._card_this_run.set("0")
         self._running = True
 
@@ -1069,8 +1100,54 @@ class App(ctk.CTk):
         self._running = False
         self._start_btn.configure(state="normal", text=t("btn_start_backup"))
         self._mode_dropdown.configure(state="normal")
+        self._open_viewer_btn.configure(state="normal")
+        self._reexport_btn.configure(state="normal")
         self._refresh_stats()
         self._logger.info("--- Backup run ended ---")
+
+    # ------------------------------------------------------------------
+    # JS re-export
+    # ------------------------------------------------------------------
+
+    def _on_reexport(self):
+        """
+        Re-export all months from DB to JS files without any API call.
+        Runs in a daemon worker thread. Button disabled for the duration.
+        """
+        self._reexport_btn.configure(state="disabled")
+        self._append_log(t("log_reexport_start"))
+        self._logger.info("--- JS re-export started ---")
+
+        def _worker():
+            try:
+                # Collect all distinct YYYY_MM values present in the DB
+                cursor = self._conn.cursor()
+                cursor.execute(
+                    "SELECT DISTINCT strftime('%Y', posted2) || '_' || strftime('%m', posted2) "
+                    "FROM favorites WHERE posted2 IS NOT NULL"
+                )
+                all_months = {row[0] for row in cursor.fetchall()}
+
+                export_js_files(
+                    conn            = self._conn,
+                    backup_dir      = str(BACKUP_DIR),
+                    affected_months = all_months,
+                    on_log          = self._append_log,
+                )
+            except Exception as e:
+                self._logger.error("JS re-export error — %s", e)
+                self.after(0, lambda: self._append_log(
+                    t("log_reexport_error", error=str(e))
+                ))
+            finally:
+                self.after(0, self._on_reexport_done)
+
+        threading.Thread(target=_worker, daemon=True, name="reexport-worker").start()
+
+    def _on_reexport_done(self):
+        """Called on main thread when reexport worker exits."""
+        self._reexport_btn.configure(state="normal")
+        self._logger.info("--- JS re-export ended ---")
 
     # ------------------------------------------------------------------
     # Stats helpers
