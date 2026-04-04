@@ -28,10 +28,10 @@
     "stats_db_size":                    "資料庫大小",
 
     "btn_clear_log":                    "清除",
-    "btn_open_index":                   "一般瀏覽（無 Tag）",
-    "btn_open_viewer":                  "進階瀏覽（含 Tag）",
+    "btn_open_index":                   "一般瀏覽",
+    "btn_open_viewer":                  "進階瀏覽（可操作 Tag）",
     "btn_open_backup_dir":              "開啟備份資料夾",
-    "btn_reexport_js":                  "重新產出 JS",
+    "btn_reexport_js":                  "更新Tag資料",
 
     "dialog_title_confirm_quit":        "確認離開",
     "dialog_msg_backup_running":        "備份進行中，確定要離開？",
