@@ -6,8 +6,9 @@
 core/export.py
 
 JS file generation for plurk-fav.
-- base36_encode()   : convert a plurk_id integer to its base-36 URL slug
-- export_js_files() : write per-month JS files and manifest.js from SQLite
+- base36_encode()    : convert a plurk_id integer to its base-36 URL slug
+- export_js_files()  : write per-month JS files and manifest.js from SQLite
+- reexport_from_db() : re-export all months from DB without any API call
 
 Output structure (backup_js/):
     YYYY_MM.js      one file per month, contains trimmed plurk objects
@@ -206,6 +207,34 @@ def export_js_files(
     _write_manifest(backup_dir)
     on_log(t("log_export_done"))
     logger.info("export: done")
+
+
+def reexport_from_db(
+    conn: sqlite3.Connection,
+    backup_dir: str,
+    on_log: Callable[[str], None] = lambda msg: None,
+) -> None:
+    """
+    Re-export all months currently in the DB to JS files, without any API call.
+    Intended for use after tag edits or manual DB changes to refresh the viewer.
+
+    Collects all distinct YYYY_MM values from the posted2 column, then delegates
+    to export_js_files() for the actual file writing.
+
+    Args:
+        conn:       open database connection
+        backup_dir: absolute path to the backup_js/ output folder
+        on_log:     callback for GUI log area messages
+    """
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT DISTINCT strftime('%Y', posted2) || '_' || strftime('%m', posted2) "
+        "FROM favorites WHERE posted2 IS NOT NULL"
+    )
+    all_months = {row[0] for row in cursor.fetchall()}
+
+    logger.info("reexport: collected %d months from DB", len(all_months))
+    export_js_files(conn, backup_dir, all_months, on_log)
 
 
 def _write_manifest(backup_dir: str) -> None:

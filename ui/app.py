@@ -21,7 +21,7 @@ from core.auth import get_keys, save_keys, build_plurk_client, start_oauth, fini
 from core.backup import run_backup_task
 from core.config import load_config, save_config
 from core.db import init_db, get_total_count
-from core.export import export_js_files
+from core.export import reexport_from_db
 from core.i18n import load_language, get_language, t, SUPPORTED_LANGUAGES
 from core.logger import setup_logger, get_logger, shutdown_logger, _get_existing_log_path
 from core.paths import BACKUP_DIR, DB_PATH, INDEX_PATH, ensure_backup_dir
@@ -1120,19 +1120,10 @@ class App(ctk.CTk):
 
         def _worker():
             try:
-                # Collect all distinct YYYY_MM values present in the DB
-                cursor = self._conn.cursor()
-                cursor.execute(
-                    "SELECT DISTINCT strftime('%Y', posted2) || '_' || strftime('%m', posted2) "
-                    "FROM favorites WHERE posted2 IS NOT NULL"
-                )
-                all_months = {row[0] for row in cursor.fetchall()}
-
-                export_js_files(
-                    conn            = self._conn,
-                    backup_dir      = str(BACKUP_DIR),
-                    affected_months = all_months,
-                    on_log          = self._append_log,
+                reexport_from_db(
+                    conn       = self._conn,
+                    backup_dir = str(BACKUP_DIR),
+                    on_log     = self._append_log,
                 )
             except Exception as e:
                 self._logger.error("JS re-export error — %s", e)
