@@ -58,11 +58,6 @@ CLR_ENTRY_BORDER = "#555555"
 CLR_BTN_PRIMARY  = "#64748b"   # primary action button background
 CLR_BTN_HOVER    = "#333333"   # primary action button hover
 
-# ==========================================
-# Timing & Delays (milliseconds)
-# ==========================================
-DIALOG_GRAB_DELAY_MS = 10  # Linux/Wayland: delay for window to become viewable
-
 
 class StatCard(ctk.CTkFrame):
     """
@@ -191,8 +186,8 @@ class App(ctk.CTk):
             tb_text = "".join(traceback.format_exception(exc_type, exc_value, exc_tb))
             self._logger.error("Unhandled exception in Tkinter callback:\n%s", tb_text)
 
-        sys.excepthook = _main_excepthook
-        threading.excepthook = _thread_excepthook
+        sys.excepthook                 = _main_excepthook
+        threading.excepthook           = _thread_excepthook
         self.report_callback_exception = _tk_callback_excepthook
 
     def _on_worker_crash(self):
@@ -245,9 +240,12 @@ class App(ctk.CTk):
         dialog.resizable(False, False)
         dialog.configure(fg_color=CLR_PANEL)
         dialog.transient(self)
-        # Defer grab_set() — CTkToplevel may not be viewable immediately after
-        # construction on Linux/Wayland, causing TclError: grab failed: window not viewable.
-        dialog.after(DIALOG_GRAB_DELAY_MS, dialog.grab_set)
+        # wait_visibility() blocks until the window manager has actually mapped
+        # the window — the canonical pattern from TkDocs for modal dialogs.
+        # grab_set() called before the window is viewable raises TclError on Linux.
+        # Reference: https://tkdocs.com/tutorial/windows.html
+        dialog.wait_visibility()
+        dialog.grab_set()
 
         ctk.CTkLabel(
             dialog,
@@ -870,9 +868,12 @@ class App(ctk.CTk):
         dialog.resizable(False, False)
         dialog.configure(fg_color=CLR_PANEL)
         dialog.transient(self)
-        # Defer grab_set() — CTkToplevel may not be viewable immediately after
-        # construction on Linux/Wayland, causing TclError: grab failed: window not viewable.
-        dialog.after(DIALOG_GRAB_DELAY_MS, dialog.grab_set)
+        # wait_visibility() blocks until the window manager has actually mapped
+        # the window — the canonical pattern from TkDocs for modal dialogs.
+        # grab_set() called before the window is viewable raises TclError on Linux.
+        # Reference: https://tkdocs.com/tutorial/windows.html
+        dialog.wait_visibility()
+        dialog.grab_set()
 
         ctk.CTkLabel(
             dialog,
@@ -1013,9 +1014,12 @@ class App(ctk.CTk):
         dialog.resizable(False, False)
         dialog.configure(fg_color=CLR_PANEL)
         dialog.transient(self)
-        # Defer grab_set() — CTkToplevel may not be viewable immediately after
-        # construction on Linux/Wayland, causing TclError: grab failed: window not viewable.
-        dialog.after(DIALOG_GRAB_DELAY_MS, dialog.grab_set)
+        # wait_visibility() blocks until the window manager has actually mapped
+        # the window — the canonical pattern from TkDocs for modal dialogs.
+        # grab_set() called before the window is viewable raises TclError on Linux.
+        # Reference: https://tkdocs.com/tutorial/windows.html
+        dialog.wait_visibility()
+        dialog.grab_set()
 
         ctk.CTkLabel(
             dialog,
