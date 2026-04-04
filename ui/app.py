@@ -58,6 +58,11 @@ CLR_ENTRY_BORDER = "#555555"
 CLR_BTN_PRIMARY  = "#64748b"   # primary action button background
 CLR_BTN_HOVER    = "#333333"   # primary action button hover
 
+# ==========================================
+# Timing & Delays (milliseconds)
+# ==========================================
+DIALOG_GRAB_DELAY_MS = 10  # Linux/Wayland: delay for window to become viewable
+
 
 class StatCard(ctk.CTkFrame):
     """
@@ -179,8 +184,16 @@ class App(ctk.CTk):
             # Reset UI on the main thread — worker died without calling _on_done()
             self.after(0, self._on_worker_crash)
 
-        sys.excepthook       = _main_excepthook
+        # Catch exceptions thrown inside Tkinter event callbacks (e.g. grab_set
+        # before the window is viewable). By default Tkinter swallows these and
+        # dumps them to stderr only — they never reach sys.excepthook or the file log.
+        def _tk_callback_excepthook(exc_type, exc_value, exc_tb):
+            tb_text = "".join(traceback.format_exception(exc_type, exc_value, exc_tb))
+            self._logger.error("Unhandled exception in Tkinter callback:\n%s", tb_text)
+
+        sys.excepthook = _main_excepthook
         threading.excepthook = _thread_excepthook
+        self.report_callback_exception = _tk_callback_excepthook
 
     def _on_worker_crash(self):
         """
@@ -232,7 +245,9 @@ class App(ctk.CTk):
         dialog.resizable(False, False)
         dialog.configure(fg_color=CLR_PANEL)
         dialog.transient(self)
-        dialog.grab_set()
+        # Defer grab_set() — CTkToplevel may not be viewable immediately after
+        # construction on Linux/Wayland, causing TclError: grab failed: window not viewable.
+        dialog.after(DIALOG_GRAB_DELAY_MS, dialog.grab_set)
 
         ctk.CTkLabel(
             dialog,
@@ -855,7 +870,9 @@ class App(ctk.CTk):
         dialog.resizable(False, False)
         dialog.configure(fg_color=CLR_PANEL)
         dialog.transient(self)
-        dialog.grab_set()
+        # Defer grab_set() — CTkToplevel may not be viewable immediately after
+        # construction on Linux/Wayland, causing TclError: grab failed: window not viewable.
+        dialog.after(DIALOG_GRAB_DELAY_MS, dialog.grab_set)
 
         ctk.CTkLabel(
             dialog,
@@ -996,7 +1013,9 @@ class App(ctk.CTk):
         dialog.resizable(False, False)
         dialog.configure(fg_color=CLR_PANEL)
         dialog.transient(self)
-        dialog.grab_set()
+        # Defer grab_set() — CTkToplevel may not be viewable immediately after
+        # construction on Linux/Wayland, causing TclError: grab failed: window not viewable.
+        dialog.after(DIALOG_GRAB_DELAY_MS, dialog.grab_set)
 
         ctk.CTkLabel(
             dialog,
