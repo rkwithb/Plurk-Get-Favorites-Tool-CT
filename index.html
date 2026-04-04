@@ -353,7 +353,12 @@
             const keyword = searchInput.value.toLowerCase().trim();
             filteredData = allDataInMonth.filter(p => {
                 const matchType = (type === 'all' || p.plurk_type.toString() === type);
-                const matchKeyword = (!keyword || p.content_raw.toLowerCase().includes(keyword));
+                const matchKeyword = (
+                    !keyword ||
+                    p.content_raw.toLowerCase().includes(keyword) ||
+                    (p.tags && p.tags.some(tag => tag.toLowerCase().includes(keyword)))
+                );
+
                 return matchType && matchKeyword;
             });
             currentPage = 0;
