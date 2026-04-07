@@ -165,6 +165,7 @@ def run_backup_task(
                 owner_id  = p.get("owner_id")
                 nick_name = _resolve_nick(p, users)
                 plurk_type = p.get("plurk_type", 0)
+                content_raw = p.get("content_raw") or ""
                 raw_json  = json.dumps(p, ensure_ascii=False)
 
                 save_to_db(
@@ -175,6 +176,7 @@ def run_backup_task(
                     owner_id=owner_id,
                     nick_name=nick_name,
                     plurk_type=plurk_type,
+                    content_raw=content_raw,
                     raw_json=raw_json,
                 )
 
