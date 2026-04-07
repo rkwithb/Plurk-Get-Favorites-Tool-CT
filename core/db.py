@@ -11,12 +11,15 @@ SQLite database operations for plurk-fav.
 - get_last_saved_id(): return the highest plurk_id in the DB (0 if empty)
 - get_total_count() : return total row count in favorites
 
-Migration strategy (old schema: plurk_id, posted, raw_json only):
+Migration strategy (modular, extensible pipeline):
 - Detect missing columns via PRAGMA table_info
 - Add missing columns with ALTER TABLE
-- Backfill owner_id, nick_name, plurk_type from raw_json — no API calls needed
-- Backfill posted2 (ISO 8601) from posted (RFC 2822) — no API calls needed
-- Migration is a one-time cost; subsequent launches skip it silently
+- Run independent backfill handlers for:
+  * owner_id, nick_name, plurk_type from raw_json (very old DBs)
+  * posted2 (ISO 8601) from posted (RFC 2822)
+  * content_raw from raw_json
+- Each handler is resumable and runs only if needed
+- Migration is a one-time cost; subsequent launches skip what's already done
 
 All migration log messages are emitted via an on_log callback so they surface
 in the GUI log area rather than printing to stdout.
@@ -42,19 +45,157 @@ def _get_existing_columns(cursor: sqlite3.Cursor) -> set[str]:
     return {row[1] for row in cursor.fetchall()}
 
 
+def _has_null_data(cursor: sqlite3.Cursor, column: str) -> bool:
+    """Check if a column has any NULL or empty values that need backfilling."""
+    cursor.execute(f"SELECT COUNT(*) FROM favorites WHERE {column} IS NULL OR {column} = ''")
+    return cursor.fetchone()[0] > 0
+
+
+def _backfill_metadata_from_raw_json(
+    conn: sqlite3.Connection,
+    cursor: sqlite3.Cursor,
+    on_log: Callable[[str], None],
+) -> None:
+    """
+    Backfill owner_id, nick_name, plurk_type from raw_json.
+
+    Used for very old DBs that only have (plurk_id, posted, raw_json).
+    Handles the initial migration from the CLI version.
+
+    Resumable: WHERE owner_id IS NULL ensures only unprocessed rows are touched.
+    """
+    cursor.execute("SELECT plurk_id, raw_json FROM favorites WHERE owner_id IS NULL")
+    rows = cursor.fetchall()
+
+    if not rows:
+        return
+
+    on_log(f"Backfilling metadata ({len(rows)} rows)...")
+    logger.info("db: backfilling metadata for %d rows", len(rows))
+
+    for i, (plurk_id, raw) in enumerate(rows):
+        try:
+            p = json.loads(raw)
+            cursor.execute(
+                "UPDATE favorites SET owner_id=?, nick_name=?, plurk_type=? WHERE plurk_id=?",
+                (p.get("owner_id"), p.get("nick_name", ""), p.get("plurk_type"), plurk_id),
+            )
+        except Exception as e:
+            logger.warning("db: metadata backfill failed for plurk_id=%s — %s", plurk_id, e)
+
+        # Checkpoint every 200 rows for resumability
+        if (i + 1) % 200 == 0:
+            conn.commit()
+            logger.debug("db: metadata checkpoint at row %d/%d", i + 1, len(rows))
+
+    conn.commit()
+
+
+def _backfill_posted2_from_posted(
+    conn: sqlite3.Connection,
+    cursor: sqlite3.Cursor,
+    on_log: Callable[[str], None],
+) -> None:
+    """
+    Backfill posted2 (ISO 8601) from posted (RFC 2822).
+
+    No API calls needed; purely local date format conversion:
+    "Sun, 23 Jun 2013 10:24:51 GMT" → "2013-06-23 10:24:51"
+
+    Used for sorting and month-based filtering in exports.
+    Resumable: WHERE posted2 IS NULL ensures only unprocessed rows are touched.
+    """
+    cursor.execute("SELECT plurk_id, posted FROM favorites WHERE posted2 IS NULL")
+    rows = cursor.fetchall()
+
+    if not rows:
+        return
+
+    on_log(f"Backfilling posted2 ({len(rows)} rows)...")
+    logger.info("db: backfilling posted2 for %d rows", len(rows))
+
+    for i, (plurk_id, posted) in enumerate(rows):
+        try:
+            posted2 = datetime.strptime(
+                posted, "%a, %d %b %Y %H:%M:%S GMT"
+            ).strftime("%Y-%m-%d %H:%M:%S")
+            cursor.execute("UPDATE favorites SET posted2=? WHERE plurk_id=?", (posted2, plurk_id))
+        except Exception as e:
+            logger.warning("db: posted2 backfill failed for plurk_id=%s — %s", plurk_id, e)
+
+        # Checkpoint every 200 rows for resumability
+        if (i + 1) % 200 == 0:
+            conn.commit()
+            logger.debug("db: posted2 checkpoint at row %d/%d", i + 1, len(rows))
+
+    conn.commit()
+
+
+def _backfill_content_raw_from_raw_json(
+    conn: sqlite3.Connection,
+    cursor: sqlite3.Cursor,
+    on_log: Callable[[str], None],
+) -> None:
+    """
+    Backfill content_raw from raw_json.
+
+    Added in v2 to store the actual plurk content separately for storage efficiency.
+    Extracts content_raw field from the API response stored in raw_json.
+    If content_raw is NULL in the API (common for restricted/deleted posts),
+    stores empty string for consistent data.
+
+    Resumable: WHERE content_raw IS NULL OR content_raw = '' ensures
+    only unprocessed rows are touched.
+    """
+    cursor.execute("SELECT plurk_id, raw_json FROM favorites WHERE content_raw IS NULL OR content_raw = ''")
+    rows = cursor.fetchall()
+
+    if not rows:
+        return
+
+    on_log(f"Backfilling content_raw ({len(rows)} rows)...")
+    logger.info("db: backfilling content_raw for %d rows", len(rows))
+
+    for i, (plurk_id, raw) in enumerate(rows):
+        try:
+            p = json.loads(raw)
+            # Use `or ""` to handle None: if API returns null, store empty string
+            content_raw = p.get("content_raw") or ""
+            cursor.execute("UPDATE favorites SET content_raw=? WHERE plurk_id=?", (content_raw, plurk_id))
+        except Exception as e:
+            logger.warning("db: content_raw backfill failed for plurk_id=%s — %s", plurk_id, e)
+
+        # Checkpoint every 200 rows for resumability
+        if (i + 1) % 200 == 0:
+            conn.commit()
+            logger.debug("db: content_raw checkpoint at row %d/%d", i + 1, len(rows))
+
+    conn.commit()
+
+
 def _migrate(conn: sqlite3.Connection, on_log: Callable[[str], None]) -> None:
     """
-    Detect old schema and apply ALTER TABLE + backfill if needed.
-    Emits log messages via on_log so they appear in the GUI log area.
+    Coordinate all schema migrations in a modular, extensible pipeline.
 
-    Old schema:  plurk_id, posted, raw_json
-    New columns: owner_id, nick_name, plurk_type
+    Flow:
+    1. Add any missing columns (ALTER TABLE)
+    2. Run independent backfill handlers:
+       - Each handler checks what needs backfilling
+       - Only runs if data is actually missing
+       - Is resumable (idempotent)
+       - Can be extended with new handlers without touching existing code
+
+    This design supports:
+    - Very old DBs (only plurk_id, posted, raw_json)
+    - Intermediate DBs (metadata backfilled, but no content_raw yet)
+    - Current DBs (all columns present and populated)
     """
     cursor = conn.cursor()
     existing = _get_existing_columns(cursor)
-    new_columns = {"owner_id", "nick_name", "plurk_type", "posted2"}
+    all_columns = {"owner_id", "nick_name", "plurk_type", "posted2", "content_raw"}
 
-    missing = new_columns - existing
+    missing = all_columns - existing
+
     if not missing:
         # Schema is already up to date — nothing to do
         return
@@ -63,12 +204,13 @@ def _migrate(conn: sqlite3.Connection, on_log: Callable[[str], None]) -> None:
     on_log(t("log_db_migrating"))
     logger.info("db: schema migration required — missing columns: %s", missing)
 
-    # Add missing columns (ALTER TABLE cannot add multiple columns in one statement)
+    # ========== Stage 1: Add missing columns ==========
     type_map = {
-        "owner_id":   "INTEGER",
-        "nick_name":  "TEXT",
-        "plurk_type": "INTEGER",
-        "posted2":    "TEXT",
+        "owner_id":    "INTEGER",
+        "nick_name":   "TEXT",
+        "plurk_type":  "INTEGER",
+        "posted2":     "TEXT",
+        "content_raw": "TEXT",
     }
     for col in missing:
         cursor.execute(f"ALTER TABLE favorites ADD COLUMN {col} {type_map[col]}")
@@ -76,47 +218,20 @@ def _migrate(conn: sqlite3.Connection, on_log: Callable[[str], None]) -> None:
 
     conn.commit()
 
-    # Backfill from raw_json and posted — one pass, no API calls
-    cursor.execute("SELECT plurk_id, posted, raw_json FROM favorites WHERE owner_id IS NULL")
-    rows = cursor.fetchall()
-    logger.info("db: backfilling %d rows", len(rows))
+    # ========== Stage 2: Run independent backfill handlers ==========
+    # Each handler is independent and resumable
 
-    for i, (plurk_id, posted, raw) in enumerate(rows):
-        try:
-            p = json.loads(raw)
-            # Parse RFC 2822 posted string into ISO 8601 for posted2
-            try:
-                posted2 = datetime.strptime(
-                    posted, "%a, %d %b %Y %H:%M:%S GMT"
-                ).strftime("%Y-%m-%d %H:%M:%S")
-            except Exception:
-                posted2 = None
-                logger.warning("db: could not parse posted for plurk_id=%s", plurk_id)
+    if "owner_id" in missing or _has_null_data(cursor, "owner_id"):
+        _backfill_metadata_from_raw_json(conn, cursor, on_log)
 
-            cursor.execute(
-                "UPDATE favorites SET owner_id=?, nick_name=?, plurk_type=?, posted2=? WHERE plurk_id=?",
-                (
-                    p.get("owner_id"),
-                    p.get("nick_name", ""),
-                    p.get("plurk_type"),
-                    posted2,
-                    plurk_id,
-                )
-            )
-        except Exception as e:
-            # Log and skip — a single bad row should not abort the whole migration
-            logger.warning("db: backfill failed for plurk_id=%s — %s", plurk_id, e)
+    if "posted2" in missing or _has_null_data(cursor, "posted2"):
+        _backfill_posted2_from_posted(conn, cursor, on_log)
 
-        # Commit every 200 rows so progress is preserved if the user closes
-        # the program mid-migration. The WHERE owner_id IS NULL filter in the
-        # query above acts as a natural resume point on the next launch.
-        if i % 200 == 199:
-            conn.commit()
-            logger.debug("db: backfill checkpoint at row %d", i + 1)
+    if "content_raw" in missing or _has_null_data(cursor, "content_raw"):
+        _backfill_content_raw_from_raw_json(conn, cursor, on_log)
 
-    conn.commit()  # Flush any remaining rows in the final partial batch
-    logger.info("db: migration complete")
     on_log(t("log_db_migration_done"))
+    logger.info("db: migration complete")
 
 
 # ---------------------------------------------------------------------------
@@ -156,6 +271,7 @@ def init_db(
             owner_id   INTEGER,
             nick_name  TEXT,
             plurk_type INTEGER,
+            content_raw TEXT,
             raw_json   TEXT
         )
     """)
@@ -205,6 +321,7 @@ def save_to_db(
     owner_id: int,
     nick_name: str,
     plurk_type: int,
+    content_raw: str,
     raw_json: str,
 ) -> None:
     """
@@ -220,15 +337,16 @@ def save_to_db(
         owner_id:   numeric user ID of the post owner
         nick_name:  display name of the post owner, denormalised at backup time
         plurk_type: 0=public, 1=private, 4=anonymous
+        content_raw: actual plurk content, extracted from API response
         raw_json:   full API response dict serialised as a JSON string
     """
     conn.execute(
         """
         INSERT OR IGNORE INTO favorites
-            (plurk_id, posted, posted2, owner_id, nick_name, plurk_type, raw_json)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+            (plurk_id, posted, posted2, owner_id, nick_name, plurk_type, content_raw, raw_json)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """,
-        (plurk_id, posted, posted2, owner_id, nick_name, plurk_type, raw_json),
+        (plurk_id, posted, posted2, owner_id, nick_name, plurk_type, content_raw, raw_json),
     )
     conn.commit()
 
