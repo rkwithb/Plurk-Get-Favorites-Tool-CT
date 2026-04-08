@@ -32,7 +32,6 @@ _current_language: str = "zh_TW"
 # Supported language codes mapped to display labels for the UI dropdown
 SUPPORTED_LANGUAGES: dict[str, str] = {
     "zh_TW": "繁體中文",
-    "en":    "English",
 }
 
 
