@@ -15,6 +15,6 @@ Backup and manage your favorite Plurks with advanced tagging, local SQLite stora
 
 ## 授權條款 / License
 
-Licensed under [Apache License 2.0](https://creativecommons.org/licenses/by-nc/4.0/) — Non-commercial use only.
+Licensed under the Apache License, Version 2.0. See [LICENSE.md](LICENSE.md) or the [Apache License 2.0](http://www.apache.org/licenses/LICENSE-2.0) for details.
 
 > 免責聲明 / Disclaimer: Use at your own risk. The author is not responsible for any losses or damages.
