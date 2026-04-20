@@ -269,7 +269,7 @@ SQLite 資料庫儲存：
 
 ## 授權條款
 
-本專案採用 [Apache License 2.0](https://creativecommons.org/licenses/by-nc/4.0/) 授權，**僅限非商業使用**。
+本專案採用 [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0) 授權，**僅限非商業使用**。
 
 - ✅ 個人使用、學習、研究、修改
 - ✅ 非營利組織使用
