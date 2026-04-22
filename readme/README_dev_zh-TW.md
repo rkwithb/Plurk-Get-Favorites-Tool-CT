@@ -109,10 +109,12 @@ PLURK_ACCESS_TOKEN_SECRET=your_access_token_secret
 ### GUI 模式（推薦用於日常使用）
 
 ```bash
-python ui/app.py
+python main.py
 ```
 
 應用程式會啟動圖形界面，你可以透過 UI 進行所有操作（備份、瀏覽、標籤等）。
+
+**替代啟動方式**：`python ui/app.py` 也可直接啟動（用於開發者測試）。
 
 **首次啟動**：
 

@@ -13,7 +13,7 @@ normal script execution and PyInstaller frozen binary mode.
 Import pattern — all other modules use:
     from core.paths import BASE_DIR, DB_PATH, BACKUP_DIR, ...
 
-Never redefine these paths in main.py, gui.py, or any other module.
+Never redefine these paths in main.py, ui/app.py, or any other module.
 """
 
 import sys
@@ -74,7 +74,7 @@ LOCALES_DIR: Path = BASE_DIR / "locales"
 def ensure_backup_dir() -> None:
     """
     Create BACKUP_DIR if it does not exist.
-    Called once at startup from main.py and gui.py before any DB or export operations.
+    Called once at startup from ui/app.py (via main.py) before any DB or export operations.
     """
     BACKUP_DIR.mkdir(parents=True, exist_ok=True)
 
