@@ -1,0 +1,51 @@
+# test.yml
+# Runs on every push to main.
+# Covers lint (flake8) and import checks only.
+#
+# Smoke tests are not included here — they require compiled binaries
+# and database fixtures which are not committed to this repository.
+# Functional testing is done locally before pushing or tagging.
+
+name: Test
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  lint:
+    name: Lint & Import Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install flake8
+
+      - name: Run flake8
+        run: |
+          flake8 core/ ui/ main.py --max-line-length=100
+
+      - name: Run import check
+        run: |
+          python -c "
+          import core.logger
+          import core.i18n
+          import core.db
+          import core.backup
+          import core.export
+          import core.server
+          import ui.app
+          print('All core modules imported successfully.')
+          "
