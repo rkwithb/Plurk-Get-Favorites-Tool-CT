@@ -1,13 +1,15 @@
 # Copyright (c) 2026 rkwithb (https://github.com/rkwithb)
-# Licensed under Apache License 2.0 (Non-Commercial Use Only)
-# Disclaimer: Use at your own risk. The author is not responsible for any damages.
+# Licensed under Apache License 2.0
+# (Non-Commercial Use Only)
+# Disclaimer: Use at your own risk. The author is not responsible for any
+# damages.
 
 """
 core/backup.py
 
 Core backup task for plurk-fav.
-- run_backup_task() : fetch favourited plurks from the Plurk API and save to DB,
-                      then trigger JS export for affected months.
+- run_backup_task() : fetch favourited plurks from the Plurk API and
+                      save to DB, then trigger JS export for affected months.
 
 Modes:
     'incremental' : fetch plurks newer than the last saved plurk_id
@@ -48,7 +50,9 @@ _PLURK_DATE_FMT = "%a, %d %b %Y %H:%M:%S GMT"
 # ---------------------------------------------------------------------------
 
 def _parse_posted(posted: str) -> Optional[datetime]:
-    """Parse a Plurk API posted string into a datetime. Returns None on failure."""
+    """Parse a Plurk API posted string into a datetime.
+    Returns None on failure.
+    """
     try:
         return datetime.strptime(posted, _PLURK_DATE_FMT)
     except Exception:
@@ -56,7 +60,9 @@ def _parse_posted(posted: str) -> Optional[datetime]:
 
 
 def _to_iso(posted: str) -> Optional[str]:
-    """Convert a Plurk API posted string to ISO 8601. Returns None on failure."""
+    """Convert a Plurk API posted string to ISO 8601.
+    Returns None on failure.
+    """
     dt = _parse_posted(posted)
     return dt.strftime("%Y-%m-%d %H:%M:%S") if dt else None
 
@@ -143,13 +149,13 @@ def run_backup_task(
                 break
 
             plurks = res["plurks"]
-            users  = res.get("plurk_users", {})
+            users = res.get("plurk_users", {})
 
             # --- Process each plurk in the page -------------------------
             stop_page = False
             for p in plurks:
-                posted    = p.get("posted", "")
-                plurk_id  = p["plurk_id"]
+                posted = p.get("posted", "")
+                plurk_id = p["plurk_id"]
                 posted_dt = _parse_posted(posted)
 
                 # -- Stop condition check --------------------------------
@@ -161,12 +167,12 @@ def run_backup_task(
                     break
 
                 # -- Resolve fields for save_to_db ----------------------
-                posted2   = _to_iso(posted)
-                owner_id  = p.get("owner_id")
+                posted2 = _to_iso(posted)
+                owner_id = p.get("owner_id")
                 nick_name = _resolve_nick(p, users)
                 plurk_type = p.get("plurk_type", 0)
                 content_raw = p.get("content_raw") or ""
-                raw_json  = json.dumps(p, ensure_ascii=False)
+                raw_json = json.dumps(p, ensure_ascii=False)
 
                 save_to_db(
                     conn,
@@ -185,7 +191,7 @@ def run_backup_task(
                     affected_months.add(posted_dt.strftime("%Y_%m"))
 
                 this_run += 1
-                total    += 1
+                total += 1
                 on_stats(this_run, total)
 
             if stop_page:
@@ -193,9 +199,11 @@ def run_backup_task(
 
             # --- Prepare offset for next page ---------------------------
             last_posted = plurks[-1].get("posted", "")
-            last_dt     = _parse_posted(last_posted)
+            last_dt = _parse_posted(last_posted)
             if not last_dt:
-                logger.warning("backup: could not parse last posted — stopping pagination")
+                logger.warning(
+                    "backup: could not parse last posted — stopping pagination"
+                )
                 break
 
             offset = last_dt.isoformat()
@@ -207,7 +215,9 @@ def run_backup_task(
         # --- Determine exit reason and emit final log line --------------
         if stop_event.is_set():
             on_log(t("log_backup_stopped"))
-            logger.info("backup: stopped by user after %d new plurks", this_run)
+            logger.info(
+                "backup: stopped by user after %d new plurks", this_run
+            )
         elif this_run == 0:
             on_log(t("log_backup_no_new"))
             logger.info("backup: no new plurks found")
@@ -224,7 +234,10 @@ def run_backup_task(
     # In full mode, export all months currently in the DB
     if mode == "full":
         cursor = conn.cursor()
-        cursor.execute("SELECT DISTINCT strftime('%Y', posted2) || '_' || strftime('%m', posted2) FROM favorites WHERE posted2 IS NOT NULL")
+        cursor.execute(
+            "SELECT DISTINCT strftime('%Y', posted2) || '_' || "
+            "strftime('%m', posted2) FROM favorites WHERE posted2 IS NOT NULL"
+        )
         affected_months = {row[0] for row in cursor.fetchall()}
 
     export_js_files(conn, backup_dir, affected_months, on_log)
