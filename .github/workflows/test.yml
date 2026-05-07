@@ -35,7 +35,7 @@ jobs:
 
       - name: Run flake8
         run: |
-          flake8 core/ ui/ main.py --max-line-length=100
+          flake8 core/ ui/ main.py
 
       - name: Run import check
         run: |
