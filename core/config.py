@@ -1,6 +1,7 @@
 # Copyright (c) 2026 rkwithb (https://github.com/rkwithb)
 # Licensed under Apache License 2.0 (Non-Commercial Use Only)
-# Disclaimer: Use at your own risk. The author is not responsible for any damages.
+# Disclaimer: Use at your own risk.
+# gThe author is not responsible for any damages.
 
 """
 core/config.py
@@ -75,13 +76,21 @@ def load_config() -> AppConfig:
         # -- language ----------------------------------------------------
         lang = raw.get("language", DEFAULT_LANGUAGE)
         if lang not in SUPPORTED_LANGUAGES:
-            logger.warning("config: unknown language '%s' — falling back to %s", lang, DEFAULT_LANGUAGE)
+            logger.warning(
+                "config: unknown language '%s' — falling back to %s",
+                lang,
+                DEFAULT_LANGUAGE,
+            )
             lang = DEFAULT_LANGUAGE
 
         # -- port --------------------------------------------------------
         port = raw.get("port", DEFAULT_PORT)
         if not isinstance(port, int) or not (1024 <= port <= 65535):
-            logger.warning("config: invalid port '%s' — falling back to %d", port, DEFAULT_PORT)
+            logger.warning(
+                "config: invalid port '%s' — falling back to %d",
+                port,
+                DEFAULT_PORT,
+            )
             port = DEFAULT_PORT
 
         logger.debug("config: loaded — language='%s' port=%d", lang, port)
@@ -93,7 +102,11 @@ def load_config() -> AppConfig:
         return AppConfig()
 
     except Exception as e:
-        logger.warning("config: failed to read config.json — %s: %s — using defaults", type(e).__name__, e)
+        logger.warning(
+            "config: failed to read config.json — %s: %s — using defaults",
+            type(e).__name__,
+            e
+        )
         return AppConfig()
 
 
@@ -115,12 +128,18 @@ def save_config(cfg: AppConfig) -> None:
         existing = {}
 
     existing["language"] = cfg.language
-    existing["port"]     = cfg.port
+    existing["port"] = cfg.port
 
     try:
         with open(config_path, "w", encoding="utf-8") as f:
             json.dump(existing, f, ensure_ascii=False, indent=2)
-        logger.debug("config: saved — language='%s' port=%d", cfg.language, cfg.port)
+        logger.debug(
+            "config: saved — language='%s' port=%d",
+            cfg.language, cfg.port
+        )
 
     except Exception as e:
-        logger.error("config: failed to write config.json — %s: %s", type(e).__name__, e)
+        logger.error(
+            "config: failed to write config.json — %s: %s",
+            type(e).__name__, e
+        )
