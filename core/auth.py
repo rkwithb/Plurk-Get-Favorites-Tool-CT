@@ -183,7 +183,7 @@ def finish_oauth(client: PlurkAPI, verifier: str) -> Tuple[str, str]:
         Exception: on network failure or invalid verifier code
     """
     token = client.get_access_token(verifier.strip())
-    at  = token["key"]
+    at = token["key"]
     ats = token["secret"]
     logger.debug("auth: OAuth complete — access token obtained")
     return at, ats
