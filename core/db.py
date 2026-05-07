@@ -1,6 +1,7 @@
 # Copyright (c) 2026 rkwithb (https://github.com/rkwithb)
 # Licensed under Apache License 2.0 (Non-Commercial Use Only)
-# Disclaimer: Use at your own risk. The author is not responsible for any damages.
+# Disclaimer: Use at your own risk.
+# The author is not responsible for any damages.
 
 """
 core/db.py
@@ -46,8 +47,11 @@ def _get_existing_columns(cursor: sqlite3.Cursor) -> set[str]:
 
 
 def _has_null_data(cursor: sqlite3.Cursor, column: str) -> bool:
-    """Check if a column has any NULL or empty values that need backfilling."""
-    cursor.execute(f"SELECT COUNT(*) FROM favorites WHERE {column} IS NULL OR {column} = ''")
+    """Check if a column has any NULL
+    or empty values that need backfilling."""
+    cursor.execute(
+        f"SELECT COUNT(*) FROM favorites WHERE {column} IS NULL OR "
+        f"{column} = ''")
     return cursor.fetchone()[0] > 0
 
 
@@ -62,9 +66,11 @@ def _backfill_metadata_from_raw_json(
     Used for very old DBs that only have (plurk_id, posted, raw_json).
     Handles the initial migration from the CLI version.
 
-    Resumable: WHERE owner_id IS NULL ensures only unprocessed rows are touched.
+    Resumable: WHERE owner_id IS NULL ensures
+    only unprocessed rows are touched.
     """
-    cursor.execute("SELECT plurk_id, raw_json FROM favorites WHERE owner_id IS NULL")
+    cursor.execute("SELECT plurk_id, raw_json "
+                   "FROM favorites WHERE owner_id IS NULL")
     rows = cursor.fetchall()
 
     if not rows:
@@ -77,16 +83,22 @@ def _backfill_metadata_from_raw_json(
         try:
             p = json.loads(raw)
             cursor.execute(
-                "UPDATE favorites SET owner_id=?, nick_name=?, plurk_type=? WHERE plurk_id=?",
-                (p.get("owner_id"), p.get("nick_name", ""), p.get("plurk_type"), plurk_id),
+                "UPDATE favorites SET owner_id=?, nick_name=?, plurk_type=? "
+                "WHERE plurk_id=?",
+                (p.get("owner_id"), p.get("nick_name", ""),
+                 p.get("plurk_type"), plurk_id),
             )
         except Exception as e:
-            logger.warning("db: metadata backfill failed for plurk_id=%s — %s", plurk_id, e)
+            logger.warning(
+                "db: metadata backfill failed for plurk_id=%s — %s",
+                plurk_id, e)
 
         # Checkpoint every 200 rows for resumability
         if (i + 1) % 200 == 0:
             conn.commit()
-            logger.debug("db: metadata checkpoint at row %d/%d", i + 1, len(rows))
+            logger.debug(
+                "db: metadata checkpoint at row %d/%d",
+                i + 1, len(rows))
 
     conn.commit()
 
@@ -105,7 +117,9 @@ def _backfill_posted2_from_posted(
     Used for sorting and month-based filtering in exports.
     Resumable: WHERE posted2 IS NULL ensures only unprocessed rows are touched.
     """
-    cursor.execute("SELECT plurk_id, posted FROM favorites WHERE posted2 IS NULL")
+    cursor.execute(
+        "SELECT plurk_id, posted FROM favorites "
+        "WHERE posted2 IS NULL")
     rows = cursor.fetchall()
 
     if not rows:
@@ -119,14 +133,20 @@ def _backfill_posted2_from_posted(
             posted2 = datetime.strptime(
                 posted, "%a, %d %b %Y %H:%M:%S GMT"
             ).strftime("%Y-%m-%d %H:%M:%S")
-            cursor.execute("UPDATE favorites SET posted2=? WHERE plurk_id=?", (posted2, plurk_id))
+            cursor.execute(
+                "UPDATE favorites SET posted2=? WHERE plurk_id=?",
+                (posted2, plurk_id))
         except Exception as e:
-            logger.warning("db: posted2 backfill failed for plurk_id=%s — %s", plurk_id, e)
+            logger.warning(
+                "db: posted2 backfill failed for plurk_id=%s — %s",
+                plurk_id, e)
 
         # Checkpoint every 200 rows for resumability
         if (i + 1) % 200 == 0:
             conn.commit()
-            logger.debug("db: posted2 checkpoint at row %d/%d", i + 1, len(rows))
+            logger.debug(
+                "db: posted2 checkpoint at row %d/%d",
+                i + 1, len(rows))
 
     conn.commit()
 
@@ -139,7 +159,8 @@ def _backfill_content_raw_from_raw_json(
     """
     Backfill content_raw from raw_json.
 
-    Added in v2 to store the actual plurk content separately for storage efficiency.
+    Added in v2 to store the actual plurk content separately
+    for storage efficiency.
     Extracts content_raw field from the API response stored in raw_json.
     If content_raw is NULL in the API (common for restricted/deleted posts),
     stores empty string for consistent data.
@@ -147,7 +168,10 @@ def _backfill_content_raw_from_raw_json(
     Resumable: WHERE content_raw IS NULL OR content_raw = '' ensures
     only unprocessed rows are touched.
     """
-    cursor.execute("SELECT plurk_id, raw_json FROM favorites WHERE content_raw IS NULL OR content_raw = ''")
+    cursor.execute(
+        "SELECT plurk_id, raw_json FROM favorites WHERE content_raw IS NULL "
+        "OR content_raw = ''"
+    )
     rows = cursor.fetchall()
 
     if not rows:
@@ -159,16 +183,26 @@ def _backfill_content_raw_from_raw_json(
     for i, (plurk_id, raw) in enumerate(rows):
         try:
             p = json.loads(raw)
-            # Use `or ""` to handle None: if API returns null, store empty string
+            # Use `or ""` to handle None:
+            # if API returns null, store empty string
             content_raw = p.get("content_raw") or ""
-            cursor.execute("UPDATE favorites SET content_raw=? WHERE plurk_id=?", (content_raw, plurk_id))
+            cursor.execute(
+                "UPDATE favorites SET content_raw=? WHERE plurk_id=?",
+                (content_raw, plurk_id),
+            )
         except Exception as e:
-            logger.warning("db: content_raw backfill failed for plurk_id=%s — %s", plurk_id, e)
+            logger.warning(
+                "db: content_raw backfill failed for plurk_id=%s — %s",
+                plurk_id,
+                e
+            )
 
         # Checkpoint every 200 rows for resumability
         if (i + 1) % 200 == 0:
             conn.commit()
-            logger.debug("db: content_raw checkpoint at row %d/%d", i + 1, len(rows))
+            logger.debug(
+                "db: content_raw checkpoint at row %d/%d",
+                i + 1, len(rows))
 
     conn.commit()
 
@@ -192,7 +226,9 @@ def _migrate(conn: sqlite3.Connection, on_log: Callable[[str], None]) -> None:
     """
     cursor = conn.cursor()
     existing = _get_existing_columns(cursor)
-    all_columns = {"owner_id", "nick_name", "plurk_type", "posted2", "content_raw"}
+    all_columns = {
+        "owner_id", "nick_name", "plurk_type", "posted2", "content_raw"
+    }
 
     missing = all_columns - existing
 
@@ -213,7 +249,9 @@ def _migrate(conn: sqlite3.Connection, on_log: Callable[[str], None]) -> None:
         "content_raw": "TEXT",
     }
     for col in missing:
-        cursor.execute(f"ALTER TABLE favorites ADD COLUMN {col} {type_map[col]}")
+        cursor.execute(
+            f"ALTER TABLE favorites ADD COLUMN {col} {type_map[col]}"
+        )
         logger.debug("db: added column '%s'", col)
 
     conn.commit()
@@ -331,11 +369,12 @@ def save_to_db(
     Args:
         conn:       open database connection
         plurk_id:   Plurk's unique post ID
-        posted:     post timestamp string from API, e.g. "Fri, 05 Jun 2009 06:00:00 GMT"
-        posted2:    post timestamp in ISO 8601 format, e.g. "2009-06-05 06:00:00"
+        posted:     post timestamp from API (RFC 2822 format)
+        posted2:    post timestamp in ISO 8601 format
                     used for SQL-level month filtering in export
         owner_id:   numeric user ID of the post owner
-        nick_name:  display name of the post owner, denormalised at backup time
+        nick_name:  display name of the post owner, denormalised
+                    at backup time
         plurk_type: 0=public, 1=private, 4=anonymous
         content_raw: actual plurk content, extracted from API response
         raw_json:   full API response dict serialised as a JSON string
@@ -343,10 +382,12 @@ def save_to_db(
     conn.execute(
         """
         INSERT OR IGNORE INTO favorites
-            (plurk_id, posted, posted2, owner_id, nick_name, plurk_type, content_raw, raw_json)
+            (plurk_id, posted, posted2, owner_id, nick_name,
+             plurk_type, content_raw, raw_json)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """,
-        (plurk_id, posted, posted2, owner_id, nick_name, plurk_type, content_raw, raw_json),
+        (plurk_id, posted, posted2, owner_id, nick_name, plurk_type,
+         content_raw, raw_json),
     )
     conn.commit()
 
