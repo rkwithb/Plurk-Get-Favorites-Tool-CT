@@ -1,6 +1,6 @@
-# Copyright (c) 2026 rkwithb (https://github.com/rkwithb)
+# Copyright (c) 2026 rkwithb
 # Licensed under Apache License 2.0 (Non-Commercial Use Only)
-# Disclaimer: Use at your own risk. The author is not responsible for any damages.
+# Disclaimer: Use at your own risk.
 
 """
 core/cli_utils.py
@@ -34,13 +34,13 @@ logger = get_logger()
 
 def resolve_backup_criteria(mode: str, yyyymm: str) -> Tuple[str, any]:
     """
-    Map CLI mode + YYYYMM argument to (resolved_mode, criteria) tuple.
+    Map CLI mode + YYYYMM argument to (resolved_mode, criteria).
 
     Modes:
-        'incremental' — backup plurks posted after the last saved id (ignores YYYYMM)
-        'date'        — backup plurks posted on/after YYYYMM (parsed as YYYY-MM-01)
+        'incremental' — backup plurks after the last saved id
+        'date'        — backup plurks on/after YYYYMM
         'full'        — backup all plurks (ignores YYYYMM)
-        'export-only' — re-export DB to JS (ignores YYYYMM, special case)
+        'export-only' — re-export DB to JS
 
     Args:
         mode:   'incremental', 'date', 'full', or 'export-only'
@@ -48,21 +48,21 @@ def resolve_backup_criteria(mode: str, yyyymm: str) -> Tuple[str, any]:
 
     Returns:
         Tuple (resolved_mode, criteria) where:
-            - resolved_mode: str — one of 'incremental', 'date', 'full'
-            - criteria:      int or datetime depending on mode
-                - 'incremental': criteria is the last plurk_id (int, passed from DB)
-                - 'date':        criteria is datetime(year, month, 1, 0, 0)
-                - 'full':        criteria is 0 (unused by backup task)
-            Special: 'export-only' returns ('export-only', None) — not used by run_backup_task()
+            - resolved_mode: one of 'incremental', 'date', 'full'
+            - criteria: int or datetime depending on mode
+                - 'incremental': last plurk_id (int, from DB)
+                - 'date': datetime(year, month, 1, 0, 0)
+                - 'full': 0 (unused by backup task)
+            Special: 'export-only' returns ('export-only', None)
 
     Raises:
-        ValueError: if mode is invalid or YYYYMM parsing fails
+        ValueError: if mode or YYYYMM parsing fails
 
     Examples:
-        resolve_backup_criteria('incremental', '202604')  → ('incremental', 0)
-        resolve_backup_criteria('date', '202604')         → ('date', datetime(2026, 4, 1))
-        resolve_backup_criteria('full', '202604')         → ('full', 0)
-        resolve_backup_criteria('export-only', '202604')  → ('export-only', None)
+        - resolve_backup_criteria('incremental', '202604')
+        - resolve_backup_criteria('date', '202604')
+        - resolve_backup_criteria('full', '202604')
+        - resolve_backup_criteria('export-only', '202604')
     """
     if mode == 'incremental':
         # Incremental mode: criteria is 0 (last_plurk_id fetched from DB)
@@ -87,7 +87,10 @@ def resolve_backup_criteria(mode: str, yyyymm: str) -> Tuple[str, any]:
         return ('export-only', None)
 
     else:
-        raise ValueError(f"Invalid mode '{mode}': must be incremental, date, full, or export-only")
+        raise ValueError(
+            f"Invalid mode '{mode}': must be incremental, date, "
+            f"full, or export-only"
+        )
 
 
 def format_yyyymm_error(yyyymm: str) -> str:
@@ -106,7 +109,7 @@ def run_cli_backup(
     backup_dir: str,
     console_log: Callable[[str], None],
     console_progress: Callable[[int, int], None],
-) -> bool:
+) -> bool:  # noqa: E501
     """
     Orchestrate backup with console logging.
 
@@ -124,7 +127,8 @@ def run_cli_backup(
     """
     import threading
 
-    # Create a dummy stop event (never set in CLI mode; used to satisfy run_backup_task API)
+    # Create a stop event (dummy in CLI mode; used to
+    # satisfy run_backup_task API)
     stop_event = threading.Event()
 
     try:

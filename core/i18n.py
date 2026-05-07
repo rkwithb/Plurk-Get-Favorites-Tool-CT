@@ -1,6 +1,8 @@
 # Copyright (c) 2026 rkwithb (https://github.com/rkwithb)
-# Licensed under Apache License 2.0 (Non-Commercial Use Only)
-# Disclaimer: Use at your own risk. The author is not responsible for any damages.
+# Licensed under Apache License 2.0
+# (Non-Commercial Use Only)
+# Disclaimer: Use at your own risk. The author is not responsible for any
+# damages.
 
 """
 core/i18n.py
@@ -8,9 +10,12 @@ core/i18n.py
 Lightweight i18n module for plurk-fav.
 - Call load_language() with a language code to load translations.
 - All modules use t(key, **kwargs) to get translated strings.
-- Falls back to the key itself if a translation is missing (visible but non-crashing).
-- Locale files are flat JSON stored in locales/ next to the binary (not bundled inside).
-  LOCALES_DIR from paths.py resolves correctly in both script mode and frozen mode.
+- Falls back to the key itself if a translation is missing
+  (visible but non-crashing).
+- Locale files are flat JSON stored in locales/ next to the binary
+  (not bundled inside).
+  LOCALES_DIR from paths.py resolves correctly in both script and
+  frozen mode.
 
 Config persistence (language code, port) is handled by core/config.py.
 This module only reads the locale files — it never touches config.json.
@@ -49,7 +54,9 @@ def load_language(lang: str) -> None:
     locale_file = locales_folder / f"{lang}.json"
 
     if not locale_file.exists():
-        logger.warning(f"i18n: locale file not found for '{lang}' — falling back to zh_TW")
+        logger.warning(
+            f"i18n: locale file not found for '{lang}' — falling back to zh_TW"
+        )
         lang = "zh_TW"
         locale_file = locales_folder / "zh_TW.json"
 
@@ -60,16 +67,19 @@ def load_language(lang: str) -> None:
             logger.debug(f"i18n: loaded '{lang}' ({len(_translations)} keys)")
 
     except Exception as e:
-        logger.error(f"i18n: failed to load locale file '{locale_file}' — {type(e).__name__}: {e}")
+        logger.error(
+            f"i18n: failed to load locale file '{locale_file}' — "
+            f"{type(e).__name__}: {e}"
+        )
         _translations = {}
         _current_language = lang
 
 
 def t(key: str, **kwargs) -> str:
     """
-    Return the translated string for key, with optional placeholder substitution.
-    Falls back to the key itself if not found — missing translations are visible
-    in the UI but will never raise an exception.
+    Return the translated string for key, with optional placeholder
+    substitution. Falls back to the key itself if not found - missing
+    translations are visible in the UI but will never raise an exception.
 
     Args:
         key:    translation key, e.g. "btn_start_backup"

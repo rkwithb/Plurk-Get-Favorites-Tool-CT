@@ -1,6 +1,8 @@
 # Copyright (c) 2026 rkwithb (https://github.com/rkwithb)
-# Licensed under Apache License 2.0 (Non-Commercial Use Only)
-# Disclaimer: Use at your own risk. The author is not responsible for any damages.
+# Licensed under Apache License 2.0
+# (Non-Commercial Use Only)
+# Disclaimer: Use at your own risk. The author is not responsible for any
+# damages.
 
 """
 core/export.py
@@ -165,7 +167,8 @@ def export_js_files(
     cursor.row_factory = sqlite3.Row
 
     for ym in sorted_months:
-        # posted2 format: "YYYY-MM-DD HH:MM:SS" — LIKE 'YYYY-MM%' filters by month in SQL
+        # posted2 format: "YYYY-MM-DD HH:MM:SS" — LIKE 'YYYY-MM%' filters
+        # by month in SQL
         iso_prefix = ym.replace("_", "-")
 
         cursor.execute(
@@ -194,12 +197,17 @@ def export_js_files(
         file_path = os.path.join(backup_dir, f"{ym}.js")
         try:
             with open(file_path, "w", encoding="utf-8") as f:
-                f.write("if (!window.BackupData) window.BackupData = { plurks: {} };\n")
+                f.write(
+                    "if (!window.BackupData) window.BackupData = "
+                    "{ plurks: {} };\n"
+                )
                 f.write(
                     f'BackupData.plurks["{ym}"] = '
                     f"{json.dumps(plurks, ensure_ascii=False)};"
                 )
-            logger.debug("export: wrote %s (%d plurks)", file_path, len(plurks))
+            logger.debug(
+                "export: wrote %s (%d plurks)", file_path, len(plurks)
+            )
         except Exception as e:
             logger.error("export: failed to write %s — %s", file_path, e)
 
@@ -215,11 +223,12 @@ def reexport_from_db(
     on_log: Callable[[str], None] = lambda msg: None,
 ) -> None:
     """
-    Re-export all months currently in the DB to JS files, without any API call.
-    Intended for use after tag edits or manual DB changes to refresh the viewer.
+    Re-export all months currently in the DB to JS files, without any
+    API call. Intended for use after tag edits or manual DB changes to
+    refresh the viewer.
 
-    Collects all distinct YYYY_MM values from the posted2 column, then delegates
-    to export_js_files() for the actual file writing.
+    Collects all distinct YYYY_MM values from the posted2 column, then
+    delegates to export_js_files() for the actual file writing.
 
     Args:
         conn:       open database connection
@@ -228,12 +237,15 @@ def reexport_from_db(
     """
     cursor = conn.cursor()
     cursor.execute(
-        "SELECT DISTINCT strftime('%Y', posted2) || '_' || strftime('%m', posted2) "
-        "FROM favorites WHERE posted2 IS NOT NULL"
+        "SELECT DISTINCT strftime('%Y', posted2) || '_' || "
+        "strftime('%m', posted2) FROM favorites "
+        "WHERE posted2 IS NOT NULL"
     )
     all_months = {row[0] for row in cursor.fetchall()}
 
-    logger.info("reexport: collected %d months from DB", len(all_months))
+    logger.info(
+        "reexport: collected %d months from DB", len(all_months)
+    )
     export_js_files(conn, backup_dir, all_months, on_log)
 
 
@@ -245,14 +257,19 @@ def _write_manifest(backup_dir: str) -> None:
     all_months = sorted(
         [f[:-3] for f in os.listdir(backup_dir)
          if f.endswith(".js") and f != "manifest.js"],
-        reverse=True,
+        reverse=True
     )
 
     manifest_path = os.path.join(backup_dir, "manifest.js")
     try:
         with open(manifest_path, "w", encoding="utf-8") as f:
-            f.write("if (!window.BackupData) window.BackupData = { plurks: {} };\n")
+            f.write(
+                "if (!window.BackupData) window.BackupData = "
+                "{ plurks: {} };\n"
+            )
             f.write(f"BackupData.months = {json.dumps(all_months)};")
         logger.debug("export: manifest written — %d months", len(all_months))
     except Exception as e:
-        logger.error("export: failed to write manifest.js — %s", e)
+        logger.error(
+            "export: failed to write manifest.js — %s", e
+        )

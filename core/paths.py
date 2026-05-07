@@ -1,6 +1,8 @@
 # Copyright (c) 2026 rkwithb (https://github.com/rkwithb)
-# Licensed under Apache License 2.0 (Non-Commercial Use Only)
-# Disclaimer: Use at your own risk. The author is not responsible for any damages.
+# Licensed under Apache License 2.0
+# (Non-Commercial Use Only)
+# Disclaimer: Use at your own risk. The author is not responsible for any
+# damages.
 
 """
 core/paths.py
@@ -74,7 +76,8 @@ LOCALES_DIR: Path = BASE_DIR / "locales"
 def ensure_backup_dir() -> None:
     """
     Create BACKUP_DIR if it does not exist.
-    Called once at startup from ui/app.py (via main.py) before any DB or export operations.
+    Called once at startup from ui/app.py (via main.py) before any DB or
+    export operations.
     """
     BACKUP_DIR.mkdir(parents=True, exist_ok=True)
 

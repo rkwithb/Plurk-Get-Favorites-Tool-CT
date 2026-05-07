@@ -2,13 +2,7 @@
 # Licensed under Apache License 2.0 (Non-Commercial Use Only)
 # Disclaimer: Use at your own risk. The author is not responsible for any damages.
 
-import customtkinter as ctk
-import os
-import subprocess
 import sys
-import threading
-import traceback
-import webbrowser
 from pathlib import Path
 
 # Ensure project root is in sys.path so 'core' package can be found
@@ -17,9 +11,22 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from core.auth import get_keys, save_keys, build_plurk_client, start_oauth, finish_oauth
+import customtkinter as ctk
+import os
+import subprocess
+import threading
+import traceback
+import webbrowser
+
+from core.auth import (
+    get_keys,
+    save_keys,
+    build_plurk_client,
+    start_oauth,
+    finish_oauth,
+)
 from core.backup import run_backup_task
-from core.config import load_config, save_config
+from core.config import AppConfig, load_config, save_config
 from core.db import init_db, get_total_count
 from core.export import reexport_from_db
 from core.i18n import load_language, get_language, t, SUPPORTED_LANGUAGES
@@ -43,20 +50,20 @@ ctk.set_default_color_theme("blue")
 # ==========================================
 # Colour palette — dark theme
 # ==========================================
-CLR_BG           = "#000000"   # main background
-CLR_PANEL        = "#1a1a1a"   # subtle panel background
-CLR_ACCENT       = "#ffffff"   # primary text / accent (light on dark)
-CLR_ACCENT2      = "#818cf8"   # blue accent
-CLR_TEXT         = "#ffffff"   # primary text
-CLR_SUBTEXT      = "#cccccc"   # secondary / hint text
-CLR_SUCCESS      = "#16a34a"   # success green
-CLR_WARN         = "#d97706"   # warning amber
-CLR_ERROR        = "#dc2626"   # error red
-CLR_BORDER       = "#ffffff"   # nav-style border
-CLR_DIVIDER      = "#ffffff"   # stat row divider lines
+CLR_BG = "#000000"  # main background
+CLR_PANEL = "#1a1a1a"  # subtle panel background
+CLR_ACCENT = "#ffffff"  # primary text / accent (light on dark)
+CLR_ACCENT2 = "#818cf8"  # blue accent
+CLR_TEXT = "#ffffff"  # primary text
+CLR_SUBTEXT = "#cccccc"  # secondary / hint text
+CLR_SUCCESS = "#16a34a"  # success green
+CLR_WARN = "#d97706"  # warning amber
+CLR_ERROR = "#dc2626"  # error red
+CLR_BORDER = "#ffffff"  # nav-style border
+CLR_DIVIDER = "#ffffff"  # stat row divider lines
 CLR_ENTRY_BORDER = "#555555"
-CLR_BTN_PRIMARY  = "#64748b"   # primary action button background
-CLR_BTN_HOVER    = "#333333"   # primary action button hover
+CLR_BTN_PRIMARY = "#64748b"  # primary action button background
+CLR_BTN_HOVER = "#333333"  # primary action button hover
 
 
 class StatCard(ctk.CTkFrame):
@@ -88,7 +95,7 @@ class StatCard(ctk.CTkFrame):
 
 
 class App(ctk.CTk):
-    def __init__(self, cfg: "AppConfig", cleanup_msg: str | None = None):
+    def __init__(self, cfg: AppConfig, cleanup_msg: str | None = None):
         super().__init__()
 
         self.title(t("header_title"))
@@ -117,9 +124,11 @@ class App(ctk.CTk):
         self._server_started: bool = False
 
         # Logger already initialised in main() before App is constructed
-        self._logger   = get_logger()
+        self._logger = get_logger()
         self._log_path = _get_existing_log_path(self._logger)
-        self._logger.info("App initialised — language=%s UI starting up", get_language())
+        self._logger.info(
+            "App initialised — language=%s UI starting up", get_language()
+        )
 
         # Register exception hooks before building UI so any init error is captured
         self._register_exception_hooks()
@@ -163,8 +172,12 @@ class App(ctk.CTk):
             does not stay stuck in running state forever.
         """
         def _main_excepthook(exc_type, exc_value, exc_tb):
-            tb_text = "".join(traceback.format_exception(exc_type, exc_value, exc_tb))
-            self._logger.critical("Unhandled exception in main thread:\n%s", tb_text)
+            tb_text = "".join(
+                traceback.format_exception(exc_type, exc_value, exc_tb)
+            )
+            self._logger.critical(
+                "Unhandled exception in main thread:\n%s", tb_text
+            )
             shutdown_logger(reason="exception")
             sys.__excepthook__(exc_type, exc_value, exc_tb)
 
@@ -186,8 +199,8 @@ class App(ctk.CTk):
             tb_text = "".join(traceback.format_exception(exc_type, exc_value, exc_tb))
             self._logger.error("Unhandled exception in Tkinter callback:\n%s", tb_text)
 
-        sys.excepthook                 = _main_excepthook
-        threading.excepthook           = _thread_excepthook
+        sys.excepthook = _main_excepthook
+        threading.excepthook = _thread_excepthook
         self.report_callback_exception = _tk_callback_excepthook
 
     def _on_worker_crash(self):
@@ -389,8 +402,8 @@ class App(ctk.CTk):
         ).grid(row=0, column=1, pady=16, padx=8, sticky="w")
 
         # Language dropdown — right side of header
-        lang_options   = list(SUPPORTED_LANGUAGES.values())
-        current_label  = SUPPORTED_LANGUAGES.get(get_language(), lang_options[0])
+        lang_options = list(SUPPORTED_LANGUAGES.values())
+        current_label = SUPPORTED_LANGUAGES.get(get_language(), lang_options[0])
 
         self._lang_dropdown = ctk.CTkOptionMenu(
             header,
@@ -493,8 +506,8 @@ class App(ctk.CTk):
         # Built here so t() is resolved at widget-construction time.
         self._mode_label_map: dict[str, str] = {
             t("mode_incremental"): "incremental",
-            t("mode_by_date"):     "date",
-            t("mode_full"):        "full",
+            t("mode_by_date"): "date",
+            t("mode_full"): "full",
         }
 
         # Row 1 — mode selector row: label + dropdown
@@ -589,13 +602,13 @@ class App(ctk.CTk):
         for i in range(3):
             stats_row.columnconfigure(i, weight=1)
 
-        self._card_total    = StatCard(stats_row, t("stats_total_saved"), CLR_SUCCESS)
-        self._card_this_run = StatCard(stats_row, t("stats_this_run"),    CLR_ACCENT2)
-        self._card_db_size  = StatCard(stats_row, t("stats_db_size"),     CLR_SUBTEXT)
+        self._card_total = StatCard(stats_row, t("stats_total_saved"), CLR_SUCCESS)
+        self._card_this_run = StatCard(stats_row, t("stats_this_run"), CLR_ACCENT2)
+        self._card_db_size = StatCard(stats_row, t("stats_db_size"), CLR_SUBTEXT)
 
-        self._card_total.grid(row=0, column=0,    sticky="ew", padx=(0, 6))
+        self._card_total.grid(row=0, column=0, sticky="ew", padx=(0, 6))
         self._card_this_run.grid(row=0, column=1, sticky="ew", padx=3)
-        self._card_db_size.grid(row=0, column=2,  sticky="ew", padx=(6, 0))
+        self._card_db_size.grid(row=0, column=2, sticky="ew", padx=(6, 0))
 
         ctk.CTkFrame(
             stats_wrapper, fg_color=CLR_DIVIDER, height=1, corner_radius=0
@@ -666,7 +679,6 @@ class App(ctk.CTk):
             command=self._open_index,
         ).grid(row=0, column=0, padx=(16, 4), pady=10)
 
-        # Stored as instance var — disabled during backup run
         self._open_viewer_btn = ctk.CTkButton(
             bottom,
             text=t("btn_open_viewer"),
@@ -786,10 +798,14 @@ class App(ctk.CTk):
         Logs actionable guidance for each incomplete state.
         """
         ck, cs, at, ats = get_keys()
-        self._ck_entry.delete(0, "end");  self._ck_entry.insert(0, ck)
-        self._cs_entry.delete(0, "end");  self._cs_entry.insert(0, cs)
-        self._at_entry.delete(0, "end");  self._at_entry.insert(0, at)
-        self._ats_entry.delete(0, "end"); self._ats_entry.insert(0, ats)
+        self._ck_entry.delete(0, "end")
+        self._ck_entry.insert(0, ck)
+        self._cs_entry.delete(0, "end")
+        self._cs_entry.insert(0, cs)
+        self._at_entry.delete(0, "end")
+        self._at_entry.insert(0, at)
+        self._ats_entry.delete(0, "end")
+        self._ats_entry.insert(0, ats)
 
         if all([ck, cs, at, ats]):
             # All keys present — collapse panel
@@ -813,9 +829,9 @@ class App(ctk.CTk):
 
     def _on_save_keys(self):
         """Read the four entry fields and persist to tool.env."""
-        ck  = self._ck_entry.get().strip()
-        cs  = self._cs_entry.get().strip()
-        at  = self._at_entry.get().strip()
+        ck = self._ck_entry.get().strip()
+        cs = self._cs_entry.get().strip()
+        at = self._at_entry.get().strip()
         ats = self._ats_entry.get().strip()
 
         if not all([ck, cs, at, ats]):
@@ -907,8 +923,10 @@ class App(ctk.CTk):
                     save_keys(ck, cs, at, ats)
 
                     def _update_fields():
-                        self._at_entry.delete(0, "end");  self._at_entry.insert(0, at)
-                        self._ats_entry.delete(0, "end"); self._ats_entry.insert(0, ats)
+                        self._at_entry.delete(0, "end")
+                        self._at_entry.insert(0, at)
+                        self._ats_entry.delete(0, "end")
+                        self._ats_entry.insert(0, ats)
                         self._append_log(t("log_auth_success"))
 
                     self.after(0, _update_fields)
@@ -988,9 +1006,9 @@ class App(ctk.CTk):
         Validate keys and mode, then launch backup worker thread.
         Shows confirmation dialog first if full backup mode is selected.
         """
-        ck  = self._ck_entry.get().strip()
-        cs  = self._cs_entry.get().strip()
-        at  = self._at_entry.get().strip()
+        ck = self._ck_entry.get().strip()
+        cs = self._cs_entry.get().strip()
+        at = self._at_entry.get().strip()
         ats = self._ats_entry.get().strip()
 
         if not all([ck, cs, at, ats]):
@@ -1079,7 +1097,7 @@ class App(ctk.CTk):
                 self._append_log(t("log_date_invalid"))
                 return
         else:
-            mode     = "full"
+            mode = "full"
             criteria = 0
 
         # Reset stop event for this run
@@ -1099,14 +1117,14 @@ class App(ctk.CTk):
             try:
                 client = build_plurk_client(ck, cs, at, ats)
                 run_backup_task(
-                    client      = client,
-                    conn        = self._conn,
-                    mode        = mode,
-                    criteria    = criteria,
-                    backup_dir  = str(BACKUP_DIR),
-                    stop_event  = self._stop_event,
-                    on_log      = self._append_log,
-                    on_stats    = self._on_stats,
+                    client=client,
+                    conn=self._conn,
+                    mode=mode,
+                    criteria=criteria,
+                    backup_dir=str(BACKUP_DIR),
+                    stop_event=self._stop_event,
+                    on_log=self._append_log,
+                    on_stats=self._on_stats,
                 )
             except Exception as e:
                 self._logger.error("Backup worker error — %s", e)

@@ -1,6 +1,8 @@
 # Copyright (c) 2026 rkwithb (https://github.com/rkwithb)
-# Licensed under Apache License 2.0 (Non-Commercial Use Only)
-# Disclaimer: Use at your own risk. The author is not responsible for any damages.
+# Licensed under Apache License 2.0
+# (Non-Commercial Use Only)
+# Disclaimer: Use at your own risk. The author is not responsible for any
+# damages.
 
 """
 core/auth.py
@@ -64,7 +66,10 @@ def get_keys() -> Tuple[str, str, str, str]:
     """
     if not os.path.exists(ENV_PATH):
         # Create empty template so the user has a file to reference
-        logger.info("auth: tool.env not found — creating empty template at %s", ENV_PATH)
+        logger.info(
+            "auth: tool.env not found — creating empty template at %s",
+            ENV_PATH
+        )
         set_key(ENV_PATH, _KEY_CK, "", quote_mode="never")
         set_key(ENV_PATH, _KEY_CS, "", quote_mode="never")
         set_key(ENV_PATH, _KEY_AT, "", quote_mode="never")

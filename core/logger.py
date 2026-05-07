@@ -1,31 +1,29 @@
-# Copyright (c) 2026 rkwithb (https://github.com/rkwithb)
+# Copyright (c) 2026 rkwithb
 # Licensed under Apache License 2.0 (Non-Commercial Use Only)
-# Disclaimer: Use at your own risk. The author is not responsible for any damages.
+# Disclaimer: Use at your own risk.
 
 """
 core/logger.py
 
 Centralised singleton logger for Plurk-Get-Favorites-Tool-CT.
 - Call setup_logger() once at app launch (GUI or CLI).
-- All other modules use get_logger() to obtain the shared logger instance.
-- Call shutdown_logger() before exiting to flush and close the file cleanly.
-- Log files are written to <BASE_DIR>/log/session_YYYYMMDD_HHMMSS.log
-- Works in both script mode and PyInstaller frozen binary mode.
+- All modules use get_logger() for the shared logger instance.
+- Call shutdown_logger() before exiting to flush log file.
+- Log files written to <BASE_DIR>/log/session_YYYYMMDD_HHMMSS.log
+- Works in script mode and PyInstaller frozen binary mode.
 
 Buffering strategy:
-  The file is opened in line-buffered mode (buffering=1).
-  Every log line is flushed to disk immediately after being written,
-  rather than accumulating in an 8KB memory buffer first.
-  Trade-off: slightly more disk write operations, but each line is guaranteed
-  on disk before the next one is written — critical for crash/kill scenarios
-  where a full-buffer flush would never happen.
-  Performance impact is negligible since the bottleneck is network I/O, not disk.
+  File opened in line-buffered mode (buffering=1).
+  Log lines flushed to disk immediately, not buffered.
+  Trade-off: more disk writes, but every line guaranteed on disk.
+  Critical for crash/kill scenarios where buffered data is lost.
+  Performance impact negligible (bottleneck is network I/O).
 
 Log retention:
-  setup_logger() keeps the most recent MAX_SESSION_LOGS session files.
-  Older files are deleted at launch before the new session file is created.
-  A retention summary is always written to the new session log.
-  The cleanup message is returned to the caller for display in the UI or CLI.
+  setup_logger() keeps recent MAX_SESSION_LOGS session files.
+  Oldest files deleted at launch before new session file created.
+  Retention summary written to the new session log.
+  Cleanup message returned to caller for UI or CLI display.
 """
 
 import logging
@@ -48,12 +46,12 @@ MAX_SESSION_LOGS = 20
 
 def _build_session_header(log_path: Path, mode: str) -> str:
     """
-    Build a structured session header block written at the top of each log file.
+    Build session header block written at top of each log file.
     Captures environment snapshot for easy debugging.
     """
-    now     = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     os_info = f"{platform.system()} {platform.release()}"
-    py_ver  = platform.python_version()
+    py_ver = platform.python_version()
 
     lines = [
         "=" * 56,
@@ -68,28 +66,31 @@ def _build_session_header(log_path: Path, mode: str) -> str:
     return "\n".join(lines)
 
 
-def _cleanup_old_logs(log_folder: Path, logger: logging.Logger) -> str | None:
+def _cleanup_old_logs(log_folder: Path,
+                      logger: logging.Logger) -> str | None:
     """
-    Delete the oldest session log files if the total count exceeds MAX_SESSION_LOGS.
-    Called from setup_logger() after the new session file is created.
+    Delete oldest session logs if count exceeds MAX_SESSION_LOGS.
+    Called from setup_logger() after new session file created.
 
-    Writes a retention summary to the log file:
-      - Always: one line with the total count of existing files found.
-      - Only if files were deleted: one line listing the deleted filenames.
+    Writes retention summary to the log file:
+      - Total count of existing files found.
+      - List of deleted filenames if any deleted.
 
-    Returns a human-readable cleanup message string if files were deleted,
-    or None if no deletion was necessary. The caller (GUI or CLI) uses this
-    to surface the message to the user.
+    Returns cleanup message string if files deleted,
+    or None if no deletion necessary.
     """
     session_files = sorted(log_folder.glob("session_*.log"))
     total = len(session_files)
 
-    logger.info(f"Log retention: {total} session file(s) found (max {MAX_SESSION_LOGS})")
+    logger.info(
+        f"Log retention: {total} session file(s) found "
+        f"(max {MAX_SESSION_LOGS})"
+    )
 
     if total <= MAX_SESSION_LOGS:
         return None
 
-    to_delete    = session_files[:total - MAX_SESSION_LOGS]
+    to_delete = session_files[:total - MAX_SESSION_LOGS]
     deleted_names = []
 
     for f in to_delete:
@@ -101,34 +102,36 @@ def _cleanup_old_logs(log_folder: Path, logger: logging.Logger) -> str | None:
 
     if deleted_names:
         names_str = ", ".join(deleted_names)
-        logger.info(f"Log retention: deleted {len(deleted_names)} old session file(s): {names_str}")
-        return f"[i] Deleted {len(deleted_names)} old session log file(s): {names_str}"
+        logger.info(
+            f"Log retention: deleted {len(deleted_names)} files: {names_str}"
+        )
+        return (
+            f"[i] Deleted {len(deleted_names)} old session log "
+            f"file(s): {names_str}"
+        )
 
     return None
 
 
 def setup_logger(mode: str = "GUI") -> tuple[Path, str | None]:
     """
-    Initialise the singleton file logger. Should be called exactly once at app launch.
+    Initialise singleton file logger (call once at app launch).
 
     Args:
-        mode: "GUI" or "CLI" — recorded in the session header for context.
+        mode: "GUI" or "CLI" — recorded in session header.
 
     Returns:
         (log_path, cleanup_msg) where:
-          log_path:    Path to the log file created for this session.
-          cleanup_msg: Human-readable string if old log files were deleted,
-                       or None if no cleanup was necessary. The caller should
-                       display this to the user (UI log window / CLI print).
+          log_path: Path to log file created for this session.
+          cleanup_msg: Message if old logs deleted, else None.
 
     Behaviour:
-        - Creates <BASE_DIR>/log/ if it does not exist.
-        - Names the file session_YYYYMMDD_HHMMSS.log.
-        - Opens the file in line-buffered mode (buffering=1) so every line
-          is written to disk immediately — safe against crashes and force-kills.
-        - Writes a session header block as the first entry.
-        - Runs log retention cleanup (keeps MAX_SESSION_LOGS most recent files).
-        - Subsequent calls are no-ops (returns the existing log path and None).
+        - Creates <BASE_DIR>/log/ if not exists.
+        - Names file session_YYYYMMDD_HHMMSS.log.
+        - Opens file line-buffered so every line written immediately.
+        - Writes session header block as first entry.
+        - Runs log retention cleanup (keeps MAX_SESSION_LOGS files).
+        - Subsequent calls are no-ops (returns path and None).
     """
     global _initialized
 
@@ -140,19 +143,20 @@ def setup_logger(mode: str = "GUI") -> tuple[Path, str | None]:
 
     logger.setLevel(logging.DEBUG)
 
-    # Log folder sits under BASE_DIR — same location regardless of script/frozen mode
+    # Log folder sits under BASE_DIR
+    # Location same regardless of script/frozen mode
     log_folder = BASE_DIR / "log"
     log_folder.mkdir(parents=True, exist_ok=True)
 
     # Timestamped session filename
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    log_path  = log_folder / f"session_{timestamp}.log"
+    log_path = log_folder / f"session_{timestamp}.log"
 
     # Open file in line-buffered mode (buffering=1):
     # Each log line is flushed to disk immediately after writing.
     # Default FileHandler would buffer ~8KB in memory before flushing —
     # meaning the last N lines before a crash or force-kill could be lost.
-    log_file     = open(log_path, "a", encoding="utf-8", buffering=1)
+    log_file = open(log_path, "a", encoding="utf-8", buffering=1)
     file_handler = logging.StreamHandler(log_file)
     file_handler.setLevel(logging.DEBUG)
 
@@ -162,8 +166,8 @@ def setup_logger(mode: str = "GUI") -> tuple[Path, str | None]:
 
     # Log format: timestamp [LEVEL ] [module] message
     formatter = logging.Formatter(
-        fmt     = "%(asctime)s [%(levelname)-5s] [%(module)s] %(message)s",
-        datefmt = "%Y-%m-%d %H:%M:%S",
+        fmt="%(asctime)s [%(levelname)-5s] [%(module)s] %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
     )
     file_handler.setFormatter(formatter)
     logger.addHandler(file_handler)
@@ -181,22 +185,20 @@ def setup_logger(mode: str = "GUI") -> tuple[Path, str | None]:
 
 def shutdown_logger(reason: str = "normal") -> None:
     """
-    Flush and close the log file cleanly before the app exits.
-    Should be called from on_closing() or any exit path.
+    Flush and close log file cleanly before app exits.
+    Call from on_closing() or any exit path.
 
     Args:
-        reason: short label recorded as the final log line.
+        reason: short label recorded as final log line.
 
     Reason labels:
-        "user_closed"  — normal window close, no active run
-        "interrupted"  — window closed during an active backup run
-        "exception"    — unhandled exception triggered shutdown
-        "normal"       — clean CLI exit
-        "language_change" — app restarting due to language switch
+        "user_closed" — normal window close
+        "interrupted" — window closed during backup run
+        "exception" — unhandled exception triggered shutdown
+        "normal" — clean CLI exit
+        "language_change" — app restart due to language switch
 
-    Note: after shutdown_logger() is called, further log calls will be silent
-    since all handlers are removed. This is intentional — it is the last thing
-    called before the process exits.
+    Note: after shutdown_logger(), further log calls are silent.
     """
     logger = logging.getLogger(_LOGGER_NAME)
     logger.info(f"--- Session ended ({reason}) ---")
@@ -216,19 +218,18 @@ def shutdown_logger(reason: str = "normal") -> None:
 def get_logger() -> logging.Logger:
     """
     Return the shared logger instance.
-    All modules should call this instead of logging.getLogger() directly
-    so the logger name stays consistent across the codebase.
+    Call instead of logging.getLogger() for consistency.
 
-    Note: setup_logger() must be called before this is useful.
-    If called before setup, returns the logger with no handlers (silent).
+    Note: setup_logger() must be called first.
+    If called before setup, returns logger with no handlers (silent).
     """
     return logging.getLogger(_LOGGER_NAME)
 
 
 def _get_existing_log_path(logger: logging.Logger) -> Path:
     """
-    Retrieve the log file path from an already-initialised logger's StreamHandler.
-    Returns a fallback Path if no handler with a stored path is found.
+    Retrieve log file path from already-initialised logger.
+    Returns fallback Path if no handler with stored path found.
     """
     for handler in logger.handlers:
         if hasattr(handler, "_log_path"):
