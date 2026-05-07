@@ -1,9 +1,17 @@
 # Copyright (c) 2026 rkwithb (https://github.com/rkwithb)
 # Licensed under Apache License 2.0 (Non-Commercial Use Only)
-# Disclaimer: Use at your own risk. The author is not responsible for any damages.
+# Disclaimer: Use at your own risk. The author is not
+# responsible for any damages.
 
 import sys
+import os
 from pathlib import Path
+
+import customtkinter as ctk
+import subprocess
+import threading
+import traceback
+import webbrowser
 
 # Ensure project root is in sys.path so 'core' package can be found
 # regardless of which directory the script is launched from
@@ -11,13 +19,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-import customtkinter as ctk
-import os
-import subprocess
-import threading
-import traceback
-import webbrowser
-
+# flake8: noqa: E402
 from core.auth import (
     get_keys,
     save_keys,
@@ -29,8 +31,18 @@ from core.backup import run_backup_task
 from core.config import AppConfig, load_config, save_config
 from core.db import init_db, get_total_count
 from core.export import reexport_from_db
-from core.i18n import load_language, get_language, t, SUPPORTED_LANGUAGES
-from core.logger import setup_logger, get_logger, shutdown_logger, _get_existing_log_path
+from core.i18n import (
+    load_language,
+    get_language,
+    t,
+    SUPPORTED_LANGUAGES,
+)
+from core.logger import (
+    setup_logger,
+    get_logger,
+    shutdown_logger,
+    _get_existing_log_path,
+)
 from core.paths import BACKUP_DIR, DB_PATH, INDEX_PATH, ensure_backup_dir
 from core.server import start_server, wait_until_ready
 
@@ -73,7 +85,12 @@ class StatCard(ctk.CTkFrame):
     """
 
     def __init__(self, master, label: str, color: str, **kwargs):
-        super().__init__(master, fg_color=CLR_PANEL, corner_radius=10, **kwargs)
+        super().__init__(
+            master,
+            fg_color=CLR_PANEL,
+            corner_radius=10,
+            **kwargs
+        )
 
         self._var = ctk.StringVar(value="0")
 
@@ -118,7 +135,10 @@ class App(ctk.CTk):
 
         # Open DB connection — kept open for the lifetime of the app.
         ensure_backup_dir()
-        self._conn = init_db(str(DB_PATH), on_log=lambda msg: self._append_log(msg))
+        self._conn = init_db(
+            str(DB_PATH),
+            on_log=lambda msg: self._append_log(msg)
+        )
 
         # Flask server started flag — prevents double-start on repeated clicks.
         self._server_started: bool = False
@@ -183,7 +203,11 @@ class App(ctk.CTk):
 
         def _thread_excepthook(args):
             tb_text = "".join(
-                traceback.format_exception(args.exc_type, args.exc_value, args.exc_traceback)
+                traceback.format_exception(
+                    args.exc_type,
+                    args.exc_value,
+                    args.exc_traceback
+                )
             )
             thread_name = args.thread.name if args.thread else "unknown"
             self._logger.critical(
@@ -427,7 +451,15 @@ class App(ctk.CTk):
 
         # Header row — always visible, contains toggle button
         setup_header = ctk.CTkFrame(setup, fg_color="transparent")
-        setup_header.grid(row=0, column=0, columnspan=3, sticky="ew", padx=16, pady=(10, 0))
+        setup_header.grid(
+            row=0,
+            column=0,
+            columnspan=3,
+            sticky="ew",
+            padx=16,
+            pady=(10, 0)
+
+        )
         setup_header.columnconfigure(0, weight=1)
 
         ctk.CTkLabel(
@@ -457,14 +489,22 @@ class App(ctk.CTk):
         self._setup_content.columnconfigure(1, weight=1)
 
         # Four masked key entry rows — parented to _setup_content
-        self._ck_entry  = self._make_key_row(self._setup_content, t("label_consumer_key"),    row=0)
-        self._cs_entry  = self._make_key_row(self._setup_content, t("label_consumer_secret"), row=1)
-        self._at_entry  = self._make_key_row(self._setup_content, t("label_access_token"),    row=2)
+        self._ck_entry = self._make_key_row(self._setup_content, t("label_consumer_key"),    row=0)
+        self._cs_entry = self._make_key_row(self._setup_content, t("label_consumer_secret"), row=1)
+        self._at_entry = self._make_key_row(self._setup_content, t("label_access_token"),    row=2)
         self._ats_entry = self._make_key_row(self._setup_content, t("label_token_secret"),    row=3)
 
         # Save Keys + Authorize buttons
         btn_row = ctk.CTkFrame(self._setup_content, fg_color="transparent")
-        btn_row.grid(row=4, column=0, columnspan=3, sticky="ew", padx=16, pady=(8, 14))
+        btn_row.grid(
+            row=4,
+            column=0,
+            columnspan=3,
+            sticky="ew",
+            padx=16,
+            pady=(8, 14)
+
+        )
 
         ctk.CTkButton(
             btn_row,
@@ -863,13 +903,25 @@ class App(ctk.CTk):
             try:
                 client, url = start_oauth(ck, cs)
                 self._logger.info("OAuth started — opening browser: %s", url)
-                self.after(0, lambda: self._append_log(t("log_auth_opening_browser")))
+                self.after(
+                    0,
+                    lambda: self._append_log(t("log_auth_opening_browser"))
+
+                )
                 webbrowser.open(url)
                 # Show verifier dialog on main thread, block until user submits
-                self.after(0, lambda: self._show_verifier_dialog(client, ck, cs))
+                self.after(
+                    0,
+                    lambda: self._show_verifier_dialog(client, ck, cs)
+
+                )
             except Exception as e:
                 self._logger.error("OAuth start failed — %s", e, exc_info=True)
-                self.after(0, lambda: self._append_log(t("log_auth_failed", error=str(e))))
+                self.after(
+                    0,
+                    lambda: self._append_log(t("log_auth_failed", error=str(e)))
+
+                )
 
         threading.Thread(target=_run, daemon=True, name="oauth-start").start()
 
@@ -933,9 +985,18 @@ class App(ctk.CTk):
                     self._logger.info("OAuth complete — access token saved")
                 except Exception as e:
                     self._logger.error("OAuth finish failed — %s", e)
-                    self.after(0, lambda: self._append_log(t("log_auth_failed", error=str(e))))
+                    self.after(
+                        0,
+                        lambda: self._append_log(t("log_auth_failed", error=str(e)))
 
-            threading.Thread(target=_finish, daemon=True, name="oauth-finish").start()
+                    )
+
+            threading.Thread(
+                target=_finish,
+                daemon=True,
+                name="oauth-finish").start(
+
+            )
 
         ctk.CTkButton(
             dialog,
@@ -1085,11 +1146,11 @@ class App(ctk.CTk):
 
         # Resolve mode string and criteria value
         if self._active_mode == "incremental":
-            mode     = "incremental"
+            mode = "incremental"
             from core.db import get_last_saved_id
             criteria = get_last_saved_id(self._conn)
         elif self._active_mode == "date":
-            mode     = "date"
+            mode = "date"
             date_str = self._date_entry.get().strip()
             try:
                 criteria = datetime.strptime(date_str, "%Y%m")
@@ -1134,10 +1195,18 @@ class App(ctk.CTk):
             finally:
                 self.after(0, self._on_done)
 
-        threading.Thread(target=_worker, daemon=True, name="backup-worker").start()
+        threading.Thread(
+            target=_worker,
+            daemon=True,
+            name="backup-worker").start(
+
+        )
 
     def _on_done(self):
-        """Called on main thread when backup worker exits (normal or stopped)."""
+        """
+        Called on main thread when backup worker exits (normal or
+        stopped).
+        """
         self._running = False
         self._start_btn.configure(state="normal", text=t("btn_start_backup"))
         self._mode_dropdown.configure(state="normal")
@@ -1162,9 +1231,9 @@ class App(ctk.CTk):
         def _worker():
             try:
                 reexport_from_db(
-                    conn       = self._conn,
+                    conn = self._conn,
                     backup_dir = str(BACKUP_DIR),
-                    on_log     = self._append_log,
+                    on_log = self._append_log,
                 )
             except Exception as e:
                 self._logger.error("JS re-export error — %s", e)
@@ -1174,7 +1243,12 @@ class App(ctk.CTk):
             finally:
                 self.after(0, self._on_reexport_done)
 
-        threading.Thread(target=_worker, daemon=True, name="reexport-worker").start()
+        threading.Thread(
+            target=_worker,
+            daemon=True,
+            name="reexport-worker").start(
+
+        )
 
     def _on_reexport_done(self):
         """Called on main thread when reexport worker exits."""
@@ -1196,7 +1270,10 @@ class App(ctk.CTk):
         self.after(0, _update)
 
     def _refresh_stats(self):
-        """Read DB for total count and file size, update all three stat cards."""
+        """
+        Read DB for total count and file size, update all three stat
+        cards.
+        """
         try:
             total = get_total_count(self._conn)
             self._card_total.set(str(total))
@@ -1332,7 +1409,7 @@ def main():
     log_path, cleanup_msg = setup_logger(mode="GUI")
 
     # Load persisted language and initialise translations before UI is built
-    cfg  = load_config()
+    cfg = load_config()
     load_language(cfg.language)
 
     app = App(cfg=cfg, cleanup_msg=cleanup_msg)
