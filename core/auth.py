@@ -42,9 +42,9 @@ from core.paths import ENV_PATH
 logger = get_logger()
 
 # Env variable names — single source of truth
-_KEY_CK  = "PLURK_CONSUMER_KEY"
-_KEY_CS  = "PLURK_CONSUMER_SECRET"
-_KEY_AT  = "PLURK_ACCESS_TOKEN"
+_KEY_CK = "PLURK_CONSUMER_KEY"
+_KEY_CS = "PLURK_CONSUMER_SECRET"
+_KEY_AT = "PLURK_ACCESS_TOKEN"
 _KEY_ATS = "PLURK_ACCESS_TOKEN_SECRET"
 
 
@@ -65,17 +65,17 @@ def get_keys() -> Tuple[str, str, str, str]:
     if not os.path.exists(ENV_PATH):
         # Create empty template so the user has a file to reference
         logger.info("auth: tool.env not found — creating empty template at %s", ENV_PATH)
-        set_key(ENV_PATH, _KEY_CK,  "", quote_mode="never")
-        set_key(ENV_PATH, _KEY_CS,  "", quote_mode="never")
-        set_key(ENV_PATH, _KEY_AT,  "", quote_mode="never")
+        set_key(ENV_PATH, _KEY_CK, "", quote_mode="never")
+        set_key(ENV_PATH, _KEY_CS, "", quote_mode="never")
+        set_key(ENV_PATH, _KEY_AT, "", quote_mode="never")
         set_key(ENV_PATH, _KEY_ATS, "", quote_mode="never")
         return "", "", "", ""
 
     load_dotenv(ENV_PATH, override=True)
 
-    ck  = os.getenv(_KEY_CK,  "").strip()
-    cs  = os.getenv(_KEY_CS,  "").strip()
-    at  = os.getenv(_KEY_AT,  "").strip()
+    ck = os.getenv(_KEY_CK, "").strip()
+    cs = os.getenv(_KEY_CS, "").strip()
+    at = os.getenv(_KEY_AT, "").strip()
     ats = os.getenv(_KEY_ATS, "").strip()
 
     logger.debug(
