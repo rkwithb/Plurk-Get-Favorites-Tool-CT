@@ -202,10 +202,16 @@ def main_cli(yyyymm: str, mode: str):
             run_cli_backup,
             run_export_only,
         )
+        from core.logger import setup_logger
     except ImportError as import_err:
         err_msg = f"Error: Failed to import core modules — {import_err}"
         print(err_msg, file=sys.stderr)
         sys.exit(1)
+
+    # ========================================================================
+    # Initialize file logger at CLI launch — before any user interaction
+    # ========================================================================
+    log_path, cleanup_msg = setup_logger(mode="CLI")
 
     # ========================================================================
     # Helper closures for console logging
@@ -221,6 +227,10 @@ def main_cli(yyyymm: str, mode: str):
         print(f"  Progress: +{this_run} this run, {total} total", end='\r')
 
     console_log(f"CLI mode: {mode} with date {yyyymm}")
+
+    # Print log retention message if old session files were deleted at this launch
+    if cleanup_msg:
+        print(cleanup_msg)
 
     # ========================================================================
     # Phase 1: Load configuration and keys
