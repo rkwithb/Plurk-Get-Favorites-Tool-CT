@@ -1,0 +1,126 @@
+name: "🐛 回報問題 / Report a Problem"
+description: |
+  遇到任何問題都可以在這裡回報。
+  Use this template to report any issue you've encountered.
+labels: ["bug"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## 感謝你的回報！ / Thanks for reporting!
+
+        請盡量填寫以下資訊，這能幫助我們更快找到問題。
+        Please fill in as much as you can — it helps us diagnose faster.
+
+        > 📁 **Log 檔案位置 / Log file location:**
+        > 程式資料夾內的 `log/` 資料夾，檔名格式為 `session_YYYYMMDD_HHMMSS.log`
+        > Inside the program folder → `log/` → file named `session_YYYYMMDD_HHMMSS.log`
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: "作業系統 / Operating System"
+      description: "你使用的作業系統 / Your operating system"
+      options:
+        - Windows 11
+        - Windows 10
+        - macOS 15 (Sequoia)
+        - macOS 14 (Sonoma)
+        - macOS 13 (Ventura)
+        - macOS 12 (Monterey)
+        - Linux
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: run_mode
+    attributes:
+      label: "執行方式 / How are you running the tool?"
+      description: "請選擇你的執行方式 / Select how you launched the program"
+      options:
+        - "下載的執行檔 (.exe / app) / Pre-built executable"
+        - "從原始碼執行 (Python) / Running from source (Python)"
+    validations:
+      required: true
+
+  - type: input
+    id: python_version
+    attributes:
+      label: "Python 版本 / Python Version"
+      description: "若從原始碼執行，請填寫 Python 版本（執行 `python --version` 可查詢）。若使用執行檔請填 N/A。 / If running from source, enter your Python version (run `python --version`). If using the executable, enter N/A."
+      placeholder: "例如 / e.g. 3.12.2 or N/A"
+    validations:
+      required: true
+
+  - type: input
+    id: tool_version
+    attributes:
+      label: "工具版本 / Tool Version"
+      description: "請填寫你使用的版本（可在 GitHub Releases 頁面確認）/ The version you downloaded (check GitHub Releases)"
+      placeholder: "例如 / e.g. v1.0.0"
+    validations:
+      required: false
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: "重現步驟 / Steps to Reproduce"
+      description: "請描述發生問題前你做了什麼操作 / What did you do before the problem occurred?"
+      placeholder: |
+        1. 開啟程式 / Launched the program
+        2. 選擇備份資料夾 / Selected the backup folder
+        3. 按下「開始備份」/ Clicked Start
+        4. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: "預期結果 / Expected Behaviour"
+      description: "你預期應該發生什麼？ / What did you expect to happen?"
+      placeholder: "應該要正常下載圖片 / Images should download normally"
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: "實際結果 / Actual Behaviour"
+      description: "實際上發生了什麼？ / What actually happened?"
+      placeholder: "程式在執行到一半時停止 / The program stopped halfway"
+    validations:
+      required: true
+
+  - type: textarea
+    id: log
+    attributes:
+      label: "📎 Log 檔案內容 / Log File Contents"
+      description: |
+        請將 `log/session_YYYYMMDD_HHMMSS.log` 的內容貼在這裡，或直接拖曳檔案上傳。
+        Paste the contents of `log/session_YYYYMMDD_HHMMSS.log` here, or drag and drop the file to upload.
+      placeholder: "貼上 log 內容，或拖曳 .log 檔案至此 / Paste log content or drag & drop the .log file here"
+      render: text
+    validations:
+      required: false
+
+  - type: textarea
+    id: screenshot
+    attributes:
+      label: "📸 截圖 / Screenshot"
+      description: |
+        如果有錯誤訊息或異常畫面，請截圖並拖曳至此上傳。
+        If there's an error message or abnormal screen, drag and drop a screenshot here.
+      placeholder: "拖曳圖片至此上傳 / Drag and drop image here"
+    validations:
+      required: false
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: "其他補充 / Additional Context"
+      description: "任何其他你覺得有幫助的資訊 / Anything else that might be helpful"
+    validations:
+      required: false
